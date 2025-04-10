@@ -4,25 +4,12 @@ import { execSync } from 'node:child_process'
 import { globby } from 'globby'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import postcss from 'postcss'
-import { migrateJsConfig } from './codemods/config/migrate-js-config'
-import { migratePostCSSConfig } from './codemods/config/migrate-postcss'
-import { migratePrettierPlugin } from './codemods/config/migrate-prettier'
-import { analyze as analyzeStylesheets } from './codemods/css/analyze'
-import { formatNodes } from './codemods/css/format-nodes'
-import { linkConfigs as linkConfigsToStylesheets } from './codemods/css/link'
-import { migrate as migrateStylesheet } from './codemods/css/migrate'
-import { sortBuckets } from './codemods/css/sort-buckets'
-import { split as splitStylesheets } from './codemods/css/split'
 import { migrate as migrateTemplate } from './codemods/template/migrate'
 import { prepareConfig } from './codemods/template/prepare-config'
 import { help } from './commands/help'
-import { Stylesheet } from './stylesheet'
 import { args, type Arg } from './utils/args'
 import { isRepoDirty } from './utils/git'
 import { hoistStaticGlobParts } from './utils/hoist-static-glob-parts'
-import { getPackageVersion } from './utils/package-version'
-import { pkg } from './utils/packages'
 import { eprintln, error, header, highlight, info, relative, success } from './utils/renderer'
 
 const options = {
@@ -74,7 +61,7 @@ async function run() {
     let repoIsDirty = false;
     try {
       // Try running isRepoDirty, potentially passing the determined root
-      repoIsDirty = isRepoDirty(); // Or just isRepoDirty() if it handles finding root
+      repoIsDirty = isRepoDirty(); // Pass base if isRepoDirty requires it
     } catch (dirtyCheckError) {
       // Handle cases where isRepoDirty fails (e.g., no git repo after fallback)
       info(`Warning: Could not perform Git dirty check: ${dirtyCheckError}`);
@@ -106,7 +93,7 @@ async function run() {
     error('Please provide configuration file path(s) using either --config or --configs.')
     info(`Examples:`)
     info(`  npx @toolwind/upgrade --config path/to/tailwind.config.js`)
-    info(`  npx @toolwind/upgrade --configs **/tailwind.config.{js,ts,cjs}`)
+    info(`  npx @toolwind/upgrade --configs '**/tailwind.config.{js,ts,cjs}'`)
     process.exit(1)
   }
   // --- END VALIDATION ---
