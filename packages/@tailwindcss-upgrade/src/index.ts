@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execSync } from 'node:child_process'
 import { globby } from 'globby'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -45,16 +46,43 @@ if (flags['--help']) {
 }
 
 async function run() {
-  let base = process.cwd()
+  const initialCwd = process.cwd();
+  let repoRoot: string | null = null;
+
+  // --- DETECT REPO ROOT USING GIT ---
+  try {
+    // Execute git command, trim whitespace from output
+    repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8', stdio: 'pipe' }).trim();
+    info(`Detected repository root: ${repoRoot}`);
+  } catch (gitError) {
+    // Handle cases where git isn't installed or it's not a repo
+    info(`Warning: Could not determine Git repository root (maybe not a git repo or git is not installed).`);
+    info(`Using current directory (${initialCwd}) as base for resolving paths and globs.`);
+    repoRoot = initialCwd; // Fallback to initial CWD
+  }
+  // Use the detected repo root as the base for all operations
+  const base = repoRoot;
+  // --- END DETECT REPO ROOT ---
 
   eprintln(header())
   eprintln()
 
-  let cleanup: (() => void)[] = []
-
+  // --- GIT DIRTY CHECK ---
+  // isRepoDirty likely needs to be run where the .git dir is expected,
+  // or it might internally find the root. If it fails, provide the base path.
   if (!flags['--force']) {
-    // Require a clean git directory
-    if (isRepoDirty()) {
+    let repoIsDirty = false;
+    try {
+      // Try running isRepoDirty, potentially passing the determined root
+      repoIsDirty = isRepoDirty(); // Or just isRepoDirty() if it handles finding root
+    } catch (dirtyCheckError) {
+      // Handle cases where isRepoDirty fails (e.g., no git repo after fallback)
+      info(`Warning: Could not perform Git dirty check: ${dirtyCheckError}`);
+      // Decide if you want to exit or continue without the check
+      // process.exit(1);
+    }
+
+    if (repoIsDirty) {
       error('Git directory is not clean. Please stash or commit your changes before migrating.')
       info(
         `You may use the ${highlight('--force')} flag to silence this warning and perform the migration.`,
@@ -62,15 +90,8 @@ async function run() {
       process.exit(1)
     }
   }
+  // --- END GIT DIRTY CHECK ---
 
-  // Require an installed `tailwindcss` version < 4
-  // let tailwindVersion = await getPackageVersion('tailwindcss', base)
-  // if (tailwindVersion && Number(tailwindVersion.split('.')[0]) !== 3) {
-  //   error(
-  //     `Tailwind CSS v${tailwindVersion} found. The migration tool can only be run on v3 projects.`,
-  //   )
-  //   process.exit(1)
-  // }
 
   // --- VALIDATION FOR CONFIG FLAGS ---
   const hasSingleConfig = flags['--config'] !== undefined;
@@ -92,29 +113,71 @@ async function run() {
 
 
   // --- DETERMINE CONFIG PATHS TO PROCESS ---
-  let configPathsToProcess: string[] = [];
+  let configInputs: string[] = [];
   if (hasSingleConfig) {
-    configPathsToProcess.push(flags['--config']!); // Add the single path
+    configInputs.push(flags['--config']!);
   } else {
-    configPathsToProcess = flags['--configs']!; // Use the array of paths
+    configInputs = flags['--configs']!;
   }
   // --- END DETERMINING PATHS ---
 
 
-  // Directly process configs using the determined paths
+  // --- RESOLVE CONFIG PATHS FROM REPO ROOT (base) ---
+  let configPathsToProcess = new Set<string>(); // Use Set for uniqueness
+  info('Resolving configuration file paths/globs relative to base directory…');
+  for (let inputPatternOrPath of configInputs) {
+      const isGlob = /[*?{}[\]]/.test(inputPatternOrPath) || inputPatternOrPath.includes('**');
+
+      if (isGlob) {
+          try {
+              // Use globby internally, searching from the repo root (base)
+              const foundFiles = await globby(inputPatternOrPath, {
+                  cwd: base, // <--- Search relative to repo root (base)
+                  absolute: true,
+                  onlyFiles: true,
+                  gitignore: true,
+                  ignore: ['**/node_modules/**'],
+              });
+              if (foundFiles.length > 0) {
+                foundFiles.forEach(file => configPathsToProcess.add(file));
+                info(`Glob '${inputPatternOrPath}' resolved to: ${foundFiles.map(f => highlight(relative(f, base))).join(', ')}`, { prefix: '↳ ' });
+              } else {
+                info(`Glob '${inputPatternOrPath}' did not match any files.`, { prefix: '↳ ' });
+              }
+          } catch (e: any) {
+              error(`Error resolving glob '${inputPatternOrPath}': ${e?.message ?? e}`, { prefix: '↳ ' })
+          }
+      } else {
+          // Treat as a specific path relative to repo root (base)
+          const absolutePath = path.resolve(base, inputPatternOrPath); // <--- Resolve relative to base
+          try {
+            await fs.access(absolutePath);
+            configPathsToProcess.add(absolutePath);
+            info(`Resolved specific path: ${highlight(relative(absolutePath, base))}`, { prefix: '↳ ' });
+          } catch {
+            error(`Specified configuration file not found: ${highlight(inputPatternOrPath)} (resolved relative to ${base})`, { prefix: '↳ ' });
+          }
+      }
+  }
+  // --- END RESOLVING PATHS ---
+
+  if (configPathsToProcess.size === 0) {
+    error('No configuration files found or resolved from the provided inputs. Aborting.');
+    process.exit(1);
+  }
+
+  // Directly process resolved absolute config paths
   let explicitConfigs: Awaited<ReturnType<typeof prepareConfig>>[] = []
   info('Loading configuration files…')
-  // Use configPathsToProcess in the loop
-  for (let configPath of configPathsToProcess) {
-    try {
-      // Resolve relative paths from the current working directory
-      let absoluteConfigPath = path.resolve(base, configPath)
-      let config = await prepareConfig(absoluteConfigPath, { base })
-      explicitConfigs.push(config)
-      success(`Loaded config: ${highlight(relative(absoluteConfigPath, base))}`, { prefix: '↳ ' })
-    } catch (e: any) {
-      error(`Failed to load config ${highlight(configPath)}: ${e?.message ?? e}`, { prefix: '↳ ' })
-    }
+  for (let absoluteConfigPath of configPathsToProcess) {
+      try {
+          // Pass repoRoot (base) to prepareConfig
+          let config = await prepareConfig(absoluteConfigPath, { base }); // <--- Pass base to prepareConfig
+          explicitConfigs.push(config);
+          success(`Loaded config: ${highlight(relative(absoluteConfigPath, base))}`, { prefix: '↳ ' })
+      } catch (e: any) {
+          error(`Failed to load config ${highlight(relative(absoluteConfigPath, base))}: ${e?.message ?? e}`, { prefix: '↳ ' })
+      }
   }
 
   if (explicitConfigs.length === 0) {
@@ -170,7 +233,7 @@ async function run() {
     }
   }
 
-  if (isRepoDirty()) {
+  if (isRepoDirty(base)) {
     success('Migration complete. Verify the changes and commit them to your repository.')
   } else {
     success('Migration complete. No changes were detected in your repository.')
