@@ -1,11 +1,11 @@
 {
   "name": "@toolwind/upgrade",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Custom Tailwind CSS v3 -> v4 upgrade tool",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tailwindlabs/tailwindcss.git",
+    "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
     "directory": "packages/@tailwindcss-cli"
   },
   "bugs": "https://github.com/tailwindlabs/tailwindcss/issues",
@@ -15,7 +15,9 @@
     "build": "tsup-node",
     "dev": "pnpm run build -- --watch"
   },
-  "bin": "./dist/index.mjs",
+  "bin": {
+    "upgrade": "dist/index.mjs"
+  },
   "exports": {
     "./package.json": "./package.json"
   },
