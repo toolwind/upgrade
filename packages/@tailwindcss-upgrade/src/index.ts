@@ -25,7 +25,8 @@ import { pkg } from './utils/packages'
 import { eprintln, error, header, highlight, info, relative, success } from './utils/renderer'
 
 const options = {
-  '--config': { type: 'string', description: 'Path to the configuration file', alias: '-c' },
+  '--config': { type: 'string', description: 'Path to a single configuration file', alias: '-c' },
+  '--configs': { type: 'string[]', description: 'Paths or globs for multiple configuration files', alias: '-C' },
   '--help': { type: 'boolean', description: 'Display usage information', alias: '-h' },
   '--force': { type: 'boolean', description: 'Force the migration', alias: '-f' },
   '--version': { type: 'boolean', description: 'Display the version number', alias: '-v' },
@@ -34,7 +35,10 @@ const flags = args(options)
 
 if (flags['--help']) {
   help({
-    usage: ['npx @tailwindcss/upgrade'],
+    usage: [
+      'npx @toolwind/upgrade --config <path>',
+      'npx @toolwind/upgrade --configs <path|glob>...',
+    ],
     options,
   })
   process.exit(0)
@@ -68,228 +72,108 @@ async function run() {
   //   process.exit(1)
   // }
 
-  {
-    // Stylesheet migrations - We need to load config but skip CSS steps
+  // --- VALIDATION FOR CONFIG FLAGS ---
+  const hasSingleConfig = flags['--config'] !== undefined;
+  const hasMultipleConfigs = flags['--configs'] !== undefined && flags['--configs'].length > 0;
 
-    // Use provided files
-    let files = flags._.map((file) => path.resolve(base, file))
+  if (hasSingleConfig && hasMultipleConfigs) {
+    error('Please use either --config (for a single file) or --configs (for multiple files), not both.')
+    process.exit(1);
+  }
 
-    // Discover CSS files in case no files were provided
-    if (files.length === 0) {
-      info('Searching for CSS files in the current directory and its subdirectories…')
+  if (!hasSingleConfig && !hasMultipleConfigs) {
+    error('Please provide configuration file path(s) using either --config or --configs.')
+    info(`Examples:`)
+    info(`  npx @toolwind/upgrade --config path/to/tailwind.config.js`)
+    info(`  npx @toolwind/upgrade --configs **/tailwind.config.{js,ts,cjs}`)
+    process.exit(1)
+  }
+  // --- END VALIDATION ---
 
-      files = await globby(['**/*.css'], {
-        absolute: true,
-        gitignore: true,
-      })
-    }
 
-    // Ensure we are only dealing with CSS files
-    files = files.filter((file) => file.endsWith('.css'))
+  // --- DETERMINE CONFIG PATHS TO PROCESS ---
+  let configPathsToProcess: string[] = [];
+  if (hasSingleConfig) {
+    configPathsToProcess.push(flags['--config']!); // Add the single path
+  } else {
+    configPathsToProcess = flags['--configs']!; // Use the array of paths
+  }
+  // --- END DETERMINING PATHS ---
 
-    // Analyze the stylesheets
-    let loadResults = await Promise.allSettled(files.map((filepath) => Stylesheet.load(filepath)))
 
-    // Load and parse all stylesheets
-    for (let result of loadResults) {
-      if (result.status === 'rejected') {
-        error(`${result.reason?.message ?? result.reason}`, { prefix: '↳ ' })
-      }
-    }
-
-    let stylesheets = loadResults
-      .filter((result) => result.status === 'fulfilled')
-      .map((result) => result.value)
-
-    // Analyze the stylesheets - Skip
-    // try {
-    //   await analyzeStylesheets(stylesheets)
-    // } catch (e: any) {
-    //   error(`${e?.message ?? e}`, { prefix: '↳ ' })
-    // }
-
-    // Ensure stylesheets are linked to configs - Keep for finding configs
+  // Directly process configs using the determined paths
+  let explicitConfigs: Awaited<ReturnType<typeof prepareConfig>>[] = []
+  info('Loading configuration files…')
+  // Use configPathsToProcess in the loop
+  for (let configPath of configPathsToProcess) {
     try {
-      await linkConfigsToStylesheets(stylesheets, {
-        configPath: flags['--config'],
-        base,
-      })
+      // Resolve relative paths from the current working directory
+      let absoluteConfigPath = path.resolve(base, configPath)
+      let config = await prepareConfig(absoluteConfigPath, { base })
+      explicitConfigs.push(config)
+      success(`Loaded config: ${highlight(relative(absoluteConfigPath, base))}`, { prefix: '↳ ' })
     } catch (e: any) {
-      error(`${e?.message ?? e}`, { prefix: '↳ ' })
+      error(`Failed to load config ${highlight(configPath)}: ${e?.message ?? e}`, { prefix: '↳ ' })
     }
+  }
 
-    // Migrate js config files, linked to stylesheets - Keep config loading, skip migration
-    if (stylesheets.some((sheet) => sheet.isTailwindRoot)) {
-      // info('Migrating JavaScript configuration files…') // Skip message
-    }
-    let configBySheet = new Map<Stylesheet, Awaited<ReturnType<typeof prepareConfig>>>()
-    // let jsConfigMigrationBySheet = new Map<
-    //   Stylesheet,
-    //   Awaited<ReturnType<typeof migrateJsConfig>> | null // Allow null
-    // >()
-    for (let sheet of stylesheets) {
-      if (!sheet.isTailwindRoot) continue
+  if (explicitConfigs.length === 0) {
+    error('No valid configuration files were loaded. Aborting.')
+    process.exit(1)
+  }
 
-      // Keep config preparation for template scanning
-      let config = await prepareConfig(sheet.linkedConfigPath, { base })
-      configBySheet.set(sheet, config)
+  // Migrate source files for each explicitly loaded config
+  if (explicitConfigs.length > 0) {
+    info('Migrating templates based on loaded configurations…')
+  }
+  {
+    // Template migrations
+    for (let config of explicitConfigs) { // Iterate over explicitly loaded configs
+      let templatesForThisConfig = new Set<string>()
+      info(`Finding templates for config: ${highlight(relative(config.configFilePath, base))}`)
+      for (let globEntry of config.sources.flatMap((entry) => hoistStaticGlobParts(entry))) {
+        let files = await globby([globEntry.pattern], {
+          absolute: true,
+          gitignore: true,
+          cwd: globEntry.base,
+        })
 
-      // Skip JS config migration
-      // let jsConfigMigration = await migrateJsConfig(
-      //   config.designSystem,
-      //   config.configFilePath,
-      //   base,
-      // )
-      // jsConfigMigrationBySheet.set(sheet, jsConfigMigration) // Set to null if needed, but template migrate doesn't use it
-
-      // Skip cleanup push
-      // if (jsConfigMigration !== null) {
-      //   // Remove the JS config if it was fully migrated
-      //   cleanup.push(() => fs.rm(config.configFilePath))
-      // }
-
-      // Skip success message
-      // if (jsConfigMigration !== null) {
-      //   success(
-      //     `Migrated configuration file: ${highlight(relative(config.configFilePath, base))}`,
-      //     { prefix: '↳ ' },
-      //   )
-      // }
-    }
-
-    // Migrate source files, linked to config files - Keep this part
-    if (configBySheet.size > 0) {
-      info('Migrating templates…')
-    }
-    {
-      // Template migrations
-      for (let config of configBySheet.values()) {
-        let set = new Set<string>()
-        for (let globEntry of config.sources.flatMap((entry) => hoistStaticGlobParts(entry))) {
-          let files = await globby([globEntry.pattern], {
-            absolute: true,
-            gitignore: true,
-            cwd: globEntry.base,
-          })
-
-          for (let file of files) {
-            set.add(file)
-          }
+        for (let file of files) {
+          templatesForThisConfig.add(file)
         }
+      }
 
-        let files = Array.from(set)
-        files.sort()
+      let filesToMigrate = Array.from(templatesForThisConfig)
+      filesToMigrate.sort()
 
+      if (filesToMigrate.length > 0) {
+        info(`Migrating ${filesToMigrate.length} template(s) for ${highlight(relative(config.configFilePath, base))}...`, { prefix: '↳ ' })
         // Migrate each file
-        await Promise.allSettled(
-          files.map((file) => migrateTemplate(config.designSystem, config.userConfig, file)),
+        let migrationResults = await Promise.allSettled(
+          filesToMigrate.map((file) => migrateTemplate(config.designSystem, config.userConfig, file)),
         )
+
+        // Log any errors during template migration
+        migrationResults.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            error(`Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: ${result.reason?.message ?? result.reason}`, { prefix: '↳ ' })
+          }
+        })
 
         success(
-          `Migrated templates for configuration file: ${highlight(relative(config.configFilePath, base))}`,
-          { prefix: '↳ ' },
+          `Finished template migration for config: ${highlight(relative(config.configFilePath, base))}`,
+          { prefix: '↳ ' }
         )
+      } else {
+        info(`No templates found to migrate for config: ${highlight(relative(config.configFilePath, base))}`, { prefix: '↳ ' })
       }
     }
-
-    // Migrate each CSS file - Skip
-    // if (stylesheets.length > 0) {
-    //   info('Migrating stylesheets…')
-    // }
-    // await Promise.all(
-    //   stylesheets.map(async (sheet) => {
-    //     try {
-    //       let config = configBySheet.get(sheet)!
-    //       let jsConfigMigration = jsConfigMigrationBySheet.get(sheet)!
-
-    //       if (!config) {
-    //         for (let parent of sheet.ancestors()) {
-    //           if (parent.isTailwindRoot) {
-    //             config ??= configBySheet.get(parent)!
-    //             jsConfigMigration ??= jsConfigMigrationBySheet.get(parent)!
-    //             break
-    //           }
-    //         }
-    //       }
-
-    //       await migrateStylesheet(sheet, { ...config, jsConfigMigration })
-    //     } catch (e: any) {
-    //       error(`${e?.message ?? e} in ${highlight(relative(sheet.file!, base))}`, { prefix: '↳ ' })
-    //     }
-    //   }),
-    // )
-
-    // Split up stylesheets (as needed) - Skip
-    // try {
-    //   await splitStylesheets(stylesheets)
-    // } catch (e: any) {
-    //   error(`${e?.message ?? e}`, { prefix: '↳ ' })
-    // }
-
-    // Cleanup `@import "…" layer(utilities)` - Skip
-    // for (let sheet of stylesheets) {
-    //   for (let importRule of sheet.importRules) {
-    //     if (!importRule.raws.tailwind_injected_layer) continue
-    //     let importedSheet = stylesheets.find(
-    //       (sheet) => sheet.id === importRule.raws.tailwind_destination_sheet_id,
-    //     )
-    //     if (!importedSheet) continue
-
-    //     // Only remove the `layer(…)` next to the import if any of the children
-    //     // contain `@utility`. Otherwise `@utility` will not be top-level.
-    //     if (
-    //       !importedSheet.containsRule((node) => node.type === 'atrule' && node.name === 'utility')
-    //     ) {
-    //       continue
-    //     }
-
-    //     // Make sure to remove the `layer(…)` from the `@import` at-rule
-    //     importRule.params = importRule.params.replace(/ layer\([^)]+\)/, '').trim()
-    //   }
-    // }
-
-    // Format nodes - Skip
-    // for (let sheet of stylesheets) {
-    //   await postcss([sortBuckets(), formatNodes()]).process(sheet.root!, { from: sheet.file! })
-    // }
-
-    // Write all files to disk - Skip
-    // for (let sheet of stylesheets) {
-    //   if (!sheet.file) continue
-
-    //   await fs.writeFile(sheet.file, sheet.root.toString())
-
-    //   if (sheet.isTailwindRoot) {
-    //     success(`Migrated stylesheet: ${highlight(relative(sheet.file, base))}`, { prefix: '↳ ' })
-    //   }
-    // }
   }
 
-  {
-    // PostCSS config migration - Skip
-    // await migratePostCSSConfig(base)
-  }
-
-  // info('Updating dependencies…') // Skip message
-  {
-    // Migrate the prettier plugin to the latest version - Skip
-    // await migratePrettierPlugin(base)
-  }
-
-  // try {
-    // Upgrade Tailwind CSS - Skip
-  //   await pkg(base).add(['tailwindcss@latest'])
-  //   success(`Updated package: ${highlight('tailwindcss')}`, { prefix: '↳ ' })
-  // } catch {}
-
-  // Run all cleanup functions because we completed the migration - Skip (only cleanup was for JS config removal)
-  // await Promise.allSettled(cleanup.map((fn) => fn()))
-
-  // Figure out if we made any changes
   if (isRepoDirty()) {
-    success('Verify the changes and commit them to your repository.')
+    success('Migration complete. Verify the changes and commit them to your repository.')
   } else {
-    success('No changes were made to your repository.')
+    success('Migration complete. No changes were detected in your repository.')
   }
 }
 

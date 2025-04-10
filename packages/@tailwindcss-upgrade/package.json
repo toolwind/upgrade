@@ -23,7 +23,6 @@
     "dist"
   ],
   "publishConfig": {
-    "provenance": true,
     "access": "public"
   },
   "dependencies": {
