@@ -60,16 +60,16 @@ async function run() {
   }
 
   // Require an installed `tailwindcss` version < 4
-  let tailwindVersion = await getPackageVersion('tailwindcss', base)
-  if (tailwindVersion && Number(tailwindVersion.split('.')[0]) !== 3) {
-    error(
-      `Tailwind CSS v${tailwindVersion} found. The migration tool can only be run on v3 projects.`,
-    )
-    process.exit(1)
-  }
+  // let tailwindVersion = await getPackageVersion('tailwindcss', base)
+  // if (tailwindVersion && Number(tailwindVersion.split('.')[0]) !== 3) {
+  //   error(
+  //     `Tailwind CSS v${tailwindVersion} found. The migration tool can only be run on v3 projects.`,
+  //   )
+  //   process.exit(1)
+  // }
 
   {
-    // Stylesheet migrations
+    // Stylesheet migrations - We need to load config but skip CSS steps
 
     // Use provided files
     let files = flags._.map((file) => path.resolve(base, file))
@@ -101,14 +101,14 @@ async function run() {
       .filter((result) => result.status === 'fulfilled')
       .map((result) => result.value)
 
-    // Analyze the stylesheets
-    try {
-      await analyzeStylesheets(stylesheets)
-    } catch (e: any) {
-      error(`${e?.message ?? e}`, { prefix: '↳ ' })
-    }
+    // Analyze the stylesheets - Skip
+    // try {
+    //   await analyzeStylesheets(stylesheets)
+    // } catch (e: any) {
+    //   error(`${e?.message ?? e}`, { prefix: '↳ ' })
+    // }
 
-    // Ensure stylesheets are linked to configs
+    // Ensure stylesheets are linked to configs - Keep for finding configs
     try {
       await linkConfigsToStylesheets(stylesheets, {
         configPath: flags['--config'],
@@ -118,42 +118,46 @@ async function run() {
       error(`${e?.message ?? e}`, { prefix: '↳ ' })
     }
 
-    // Migrate js config files, linked to stylesheets
+    // Migrate js config files, linked to stylesheets - Keep config loading, skip migration
     if (stylesheets.some((sheet) => sheet.isTailwindRoot)) {
-      info('Migrating JavaScript configuration files…')
+      // info('Migrating JavaScript configuration files…') // Skip message
     }
     let configBySheet = new Map<Stylesheet, Awaited<ReturnType<typeof prepareConfig>>>()
-    let jsConfigMigrationBySheet = new Map<
-      Stylesheet,
-      Awaited<ReturnType<typeof migrateJsConfig>>
-    >()
+    // let jsConfigMigrationBySheet = new Map<
+    //   Stylesheet,
+    //   Awaited<ReturnType<typeof migrateJsConfig>> | null // Allow null
+    // >()
     for (let sheet of stylesheets) {
       if (!sheet.isTailwindRoot) continue
 
+      // Keep config preparation for template scanning
       let config = await prepareConfig(sheet.linkedConfigPath, { base })
       configBySheet.set(sheet, config)
 
-      let jsConfigMigration = await migrateJsConfig(
-        config.designSystem,
-        config.configFilePath,
-        base,
-      )
-      jsConfigMigrationBySheet.set(sheet, jsConfigMigration)
+      // Skip JS config migration
+      // let jsConfigMigration = await migrateJsConfig(
+      //   config.designSystem,
+      //   config.configFilePath,
+      //   base,
+      // )
+      // jsConfigMigrationBySheet.set(sheet, jsConfigMigration) // Set to null if needed, but template migrate doesn't use it
 
-      if (jsConfigMigration !== null) {
-        // Remove the JS config if it was fully migrated
-        cleanup.push(() => fs.rm(config.configFilePath))
-      }
+      // Skip cleanup push
+      // if (jsConfigMigration !== null) {
+      //   // Remove the JS config if it was fully migrated
+      //   cleanup.push(() => fs.rm(config.configFilePath))
+      // }
 
-      if (jsConfigMigration !== null) {
-        success(
-          `Migrated configuration file: ${highlight(relative(config.configFilePath, base))}`,
-          { prefix: '↳ ' },
-        )
-      }
+      // Skip success message
+      // if (jsConfigMigration !== null) {
+      //   success(
+      //     `Migrated configuration file: ${highlight(relative(config.configFilePath, base))}`,
+      //     { prefix: '↳ ' },
+      //   )
+      // }
     }
 
-    // Migrate source files, linked to config files
+    // Migrate source files, linked to config files - Keep this part
     if (configBySheet.size > 0) {
       info('Migrating templates…')
     }
@@ -188,98 +192,98 @@ async function run() {
       }
     }
 
-    // Migrate each CSS file
-    if (stylesheets.length > 0) {
-      info('Migrating stylesheets…')
-    }
-    await Promise.all(
-      stylesheets.map(async (sheet) => {
-        try {
-          let config = configBySheet.get(sheet)!
-          let jsConfigMigration = jsConfigMigrationBySheet.get(sheet)!
+    // Migrate each CSS file - Skip
+    // if (stylesheets.length > 0) {
+    //   info('Migrating stylesheets…')
+    // }
+    // await Promise.all(
+    //   stylesheets.map(async (sheet) => {
+    //     try {
+    //       let config = configBySheet.get(sheet)!
+    //       let jsConfigMigration = jsConfigMigrationBySheet.get(sheet)!
 
-          if (!config) {
-            for (let parent of sheet.ancestors()) {
-              if (parent.isTailwindRoot) {
-                config ??= configBySheet.get(parent)!
-                jsConfigMigration ??= jsConfigMigrationBySheet.get(parent)!
-                break
-              }
-            }
-          }
+    //       if (!config) {
+    //         for (let parent of sheet.ancestors()) {
+    //           if (parent.isTailwindRoot) {
+    //             config ??= configBySheet.get(parent)!
+    //             jsConfigMigration ??= jsConfigMigrationBySheet.get(parent)!
+    //             break
+    //           }
+    //         }
+    //       }
 
-          await migrateStylesheet(sheet, { ...config, jsConfigMigration })
-        } catch (e: any) {
-          error(`${e?.message ?? e} in ${highlight(relative(sheet.file!, base))}`, { prefix: '↳ ' })
-        }
-      }),
-    )
+    //       await migrateStylesheet(sheet, { ...config, jsConfigMigration })
+    //     } catch (e: any) {
+    //       error(`${e?.message ?? e} in ${highlight(relative(sheet.file!, base))}`, { prefix: '↳ ' })
+    //     }
+    //   }),
+    // )
 
-    // Split up stylesheets (as needed)
-    try {
-      await splitStylesheets(stylesheets)
-    } catch (e: any) {
-      error(`${e?.message ?? e}`, { prefix: '↳ ' })
-    }
+    // Split up stylesheets (as needed) - Skip
+    // try {
+    //   await splitStylesheets(stylesheets)
+    // } catch (e: any) {
+    //   error(`${e?.message ?? e}`, { prefix: '↳ ' })
+    // }
 
-    // Cleanup `@import "…" layer(utilities)`
-    for (let sheet of stylesheets) {
-      for (let importRule of sheet.importRules) {
-        if (!importRule.raws.tailwind_injected_layer) continue
-        let importedSheet = stylesheets.find(
-          (sheet) => sheet.id === importRule.raws.tailwind_destination_sheet_id,
-        )
-        if (!importedSheet) continue
+    // Cleanup `@import "…" layer(utilities)` - Skip
+    // for (let sheet of stylesheets) {
+    //   for (let importRule of sheet.importRules) {
+    //     if (!importRule.raws.tailwind_injected_layer) continue
+    //     let importedSheet = stylesheets.find(
+    //       (sheet) => sheet.id === importRule.raws.tailwind_destination_sheet_id,
+    //     )
+    //     if (!importedSheet) continue
 
-        // Only remove the `layer(…)` next to the import if any of the children
-        // contain `@utility`. Otherwise `@utility` will not be top-level.
-        if (
-          !importedSheet.containsRule((node) => node.type === 'atrule' && node.name === 'utility')
-        ) {
-          continue
-        }
+    //     // Only remove the `layer(…)` next to the import if any of the children
+    //     // contain `@utility`. Otherwise `@utility` will not be top-level.
+    //     if (
+    //       !importedSheet.containsRule((node) => node.type === 'atrule' && node.name === 'utility')
+    //     ) {
+    //       continue
+    //     }
 
-        // Make sure to remove the `layer(…)` from the `@import` at-rule
-        importRule.params = importRule.params.replace(/ layer\([^)]+\)/, '').trim()
-      }
-    }
+    //     // Make sure to remove the `layer(…)` from the `@import` at-rule
+    //     importRule.params = importRule.params.replace(/ layer\([^)]+\)/, '').trim()
+    //   }
+    // }
 
-    // Format nodes
-    for (let sheet of stylesheets) {
-      await postcss([sortBuckets(), formatNodes()]).process(sheet.root!, { from: sheet.file! })
-    }
+    // Format nodes - Skip
+    // for (let sheet of stylesheets) {
+    //   await postcss([sortBuckets(), formatNodes()]).process(sheet.root!, { from: sheet.file! })
+    // }
 
-    // Write all files to disk
-    for (let sheet of stylesheets) {
-      if (!sheet.file) continue
+    // Write all files to disk - Skip
+    // for (let sheet of stylesheets) {
+    //   if (!sheet.file) continue
 
-      await fs.writeFile(sheet.file, sheet.root.toString())
+    //   await fs.writeFile(sheet.file, sheet.root.toString())
 
-      if (sheet.isTailwindRoot) {
-        success(`Migrated stylesheet: ${highlight(relative(sheet.file, base))}`, { prefix: '↳ ' })
-      }
-    }
+    //   if (sheet.isTailwindRoot) {
+    //     success(`Migrated stylesheet: ${highlight(relative(sheet.file, base))}`, { prefix: '↳ ' })
+    //   }
+    // }
   }
 
   {
-    // PostCSS config migration
-    await migratePostCSSConfig(base)
+    // PostCSS config migration - Skip
+    // await migratePostCSSConfig(base)
   }
 
-  info('Updating dependencies…')
+  // info('Updating dependencies…') // Skip message
   {
-    // Migrate the prettier plugin to the latest version
-    await migratePrettierPlugin(base)
+    // Migrate the prettier plugin to the latest version - Skip
+    // await migratePrettierPlugin(base)
   }
 
-  try {
-    // Upgrade Tailwind CSS
-    await pkg(base).add(['tailwindcss@latest'])
-    success(`Updated package: ${highlight('tailwindcss')}`, { prefix: '↳ ' })
-  } catch {}
+  // try {
+    // Upgrade Tailwind CSS - Skip
+  //   await pkg(base).add(['tailwindcss@latest'])
+  //   success(`Updated package: ${highlight('tailwindcss')}`, { prefix: '↳ ' })
+  // } catch {}
 
-  // Run all cleanup functions because we completed the migration
-  await Promise.allSettled(cleanup.map((fn) => fn()))
+  // Run all cleanup functions because we completed the migration - Skip (only cleanup was for JS config removal)
+  // await Promise.allSettled(cleanup.map((fn) => fn()))
 
   // Figure out if we made any changes
   if (isRepoDirty()) {
