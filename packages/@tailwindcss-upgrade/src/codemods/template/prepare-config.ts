@@ -65,8 +65,11 @@ export async function prepareConfig(
       configFilePath,
     }
   } catch (e: any) {
-    error('Could not load the configuration file: ' + e.message, { prefix: '↳ ' })
-    process.exit(1)
+    const relativeConfigPath = configFilePath ? relative(configFilePath, options.base) : 'unknown';
+    error(`Could not load the configuration file (${highlight(relativeConfigPath)}): ${e?.message ?? e}`, { prefix: '↳ ' });
+    console.error(`[DEBUG prepareConfig] Full error details for ${relativeConfigPath}:`);
+    console.error(e);
+    throw e;
   }
 }
 
