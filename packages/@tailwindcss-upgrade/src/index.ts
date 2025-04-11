@@ -68,12 +68,17 @@ async function run() {
   // --- END GIT DIRTY CHECK ---
 
   // --- VALIDATION FOR CONFIG FLAGS ---
-  const hasSingleConfig = flags['--config'] !== undefined;
-  const hasMultipleConfigs = flags['--configs'] !== undefined && flags['--configs'].length > 0;
+  // Check against null, the actual default value when flag is not provided
+  const hasSingleConfig = flags['--config'] !== null;
+  // Check against null first before checking length
+  const hasMultipleConfigs = flags['--configs'] !== null && flags['--configs'].length > 0;
+
   if (hasSingleConfig && hasMultipleConfigs) {
     error('Please use either --config (for a single file) or --configs (for multiple files), not both.')
     process.exit(1);
   }
+
+  // Check if neither valid flag was provided
   if (!hasSingleConfig && !hasMultipleConfigs) {
     error('Please provide configuration file path(s) using either --config or --configs.')
     info(`Examples:`)
