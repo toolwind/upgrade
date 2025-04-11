@@ -69,6 +69,9 @@ export type Result<T extends Arg> = {
 
 export function args<const T extends Arg>(options: T, argv = process.argv.slice(2)): Result<T> {
   let parsed = parse(argv)
+  // --- DEBUG LOG ---
+  console.log(`[DEBUG args.ts] Raw parsed args (from mri): ${JSON.stringify(parsed)}`);
+  // --- DEBUG LOG ---
 
   let result: { _: string[]; [key: string]: unknown } = {
     _: parsed._,
@@ -78,26 +81,44 @@ export function args<const T extends Arg>(options: T, argv = process.argv.slice(
     flag,
     { type, alias, default: defaultValue = type === 'boolean' ? false : null },
   ] of Object.entries(options)) {
-    // Start with the default value
     result[flag] = defaultValue
+    // --- DEBUG LOG ---
+    console.log(`[DEBUG args.ts] Initializing ${flag} with default: ${JSON.stringify(defaultValue)}`);
+    // --- DEBUG LOG ---
 
-    // Try to find the `alias`, and map it to long form `flag`
     if (alias) {
       let key = alias.slice(1)
       if (parsed[key] !== undefined) {
-        result[flag] = convert(parsed[key], type)
+        const convertedValue = convert(parsed[key], type);
+        // --- DEBUG LOG ---
+        console.log(`[DEBUG args.ts] Found alias '${key}' for ${flag}. Value: ${JSON.stringify(parsed[key])}. Converted: ${JSON.stringify(convertedValue)}`);
+        // --- DEBUG LOG ---
+        result[flag] = convertedValue
       }
     }
 
-    // Try to find the long form `flag`
     {
       let key = flag.slice(2)
       if (parsed[key] !== undefined) {
-        result[flag] = convert(parsed[key], type)
+        // If alias already set it, this might overwrite, or mri might prioritize one?
+        const currentValue = result[flag]; // Value potentially set by alias
+        const convertedValue = convert(parsed[key], type);
+         // --- DEBUG LOG ---
+        console.log(`[DEBUG args.ts] Found long flag '${key}' for ${flag}. Value: ${JSON.stringify(parsed[key])}. Converted: ${JSON.stringify(convertedValue)}. Current result value: ${JSON.stringify(currentValue)}`);
+        // --- DEBUG LOG ---
+        // Avoid overwriting if alias already provided a valid value? Or let mri's precedence rule?
+        // Let's assume mri handles precedence, or the last one wins if both alias and long are somehow present in `parsed`.
+        result[flag] = convertedValue;
       }
     }
+    // --- DEBUG LOG ---
+    console.log(`[DEBUG args.ts] Final value for ${flag} after checks: ${JSON.stringify(result[flag])}`);
+    // --- DEBUG LOG ---
   }
 
+  // --- DEBUG LOG ---
+  console.log(`[DEBUG args.ts] Returning final args object: ${JSON.stringify(result)}`);
+  // --- DEBUG LOG ---
   return result as Result<T>
 }
 
