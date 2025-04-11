@@ -69,7 +69,7 @@ async function run() {
 
   // --- VALIDATION FOR CONFIG FLAGS ---
   // Check against null, the actual default value when flag is not provided
-  const hasSingleConfig = flags['--config'] !== null;
+  const hasSingleConfig = flags['--config'] !== undefined;
   // Check against null first before checking length
   const hasMultipleConfigs = flags['--configs'] !== null && flags['--configs'].length > 0;
 
