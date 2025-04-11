@@ -1,6 +1,6 @@
 {
   "name": "@toolwind/upgrade",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Custom Tailwind CSS v3 -> v4 upgrade tool",
   "license": "MIT",
   "repository": {

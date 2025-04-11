@@ -156,18 +156,27 @@ async function run() {
 
   // --- LOAD CONFIGS DIRECTLY ---
   let explicitConfigs: Awaited<ReturnType<typeof prepareConfig>>[] = []
-  info('Loading configuration files…') // This should be the first major step logged
+  info('Loading configuration files…')
   for (let absoluteConfigPath of configPathsToProcess) {
+      const relativeConfigPath = relative(absoluteConfigPath, base); // Get relative path for logging
       try {
+          // Pass repoRoot (base) to prepareConfig
           let config = await prepareConfig(absoluteConfigPath, { base });
           explicitConfigs.push(config);
-          success(`Loaded config: ${highlight(relative(absoluteConfigPath, base))}`, { prefix: '↳ ' })
+          success(`Loaded config: ${highlight(relativeConfigPath)}`, { prefix: '↳ ' })
       } catch (e: any) {
-          error(`Failed to load config ${highlight(relative(absoluteConfigPath, base))}: ${e?.message ?? e}`, { prefix: '↳ ' })
+          // --- MODIFIED ERROR LOGGING ---
+          error(`Failed to load config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`, { prefix: '↳ ' });
+          // Add more detail to the console for debugging
+          console.error(`[DEBUG] Full error details for ${relativeConfigPath}:`);
+          console.error(e);
+          // Continue processing other files, but note the failure
+          // --- END MODIFIED ERROR LOGGING ---
       }
   }
+  // Check if *any* configs loaded successfully before proceeding
   if (explicitConfigs.length === 0) {
-      error('No valid configuration files were successfully loaded. Aborting.');
+      error('No valid configuration files could be loaded successfully. Aborting.'); // Adjusted message
       process.exit(1);
   }
   // --- END LOAD CONFIGS DIRECTLY ---
