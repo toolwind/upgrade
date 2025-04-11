@@ -107,6 +107,7 @@ async function run() {
                   onlyFiles: true,
                   gitignore: true,
                   ignore: ['**/node_modules/**'],
+                  followSymbolicLinks: false,
               });
               if (foundFiles.length > 0) {
                   foundFiles.forEach(file => configPathsToProcess.add(file));
@@ -115,7 +116,11 @@ async function run() {
                   info(`Glob '${inputPatternOrPath}' did not match any files.`, { prefix: '↳ ' });
               }
           } catch (e: any) {
-              error(`Error resolving glob '${inputPatternOrPath}': ${e?.message ?? e}`, { prefix: '↳ ' })
+              if (e?.code === 'ENAMETOOLONG') {
+                 error(`Error resolving glob '${inputPatternOrPath}': Path became too long, possibly due to symlinks even with followSymbolicLinks:false? Error: ${e?.message ?? e}`, { prefix: '↳ ' })
+              } else {
+                 error(`Error resolving glob '${inputPatternOrPath}': ${e?.message ?? e}`, { prefix: '↳ ' })
+              }
           }
       } else {
           const absolutePath = path.resolve(base, inputPatternOrPath);
