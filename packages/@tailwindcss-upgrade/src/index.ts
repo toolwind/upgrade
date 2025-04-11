@@ -195,6 +195,11 @@ async function run() {
                   absolute: true,
                   gitignore: true,
                   cwd: globEntry.base,
+                  ignore: [
+                      '**/node_modules/**',
+                      '**/dist/**',
+                      '**/.*/**',
+                  ],
               })
               files.forEach(file => templatesForThisConfig.add(file))
           }
@@ -209,7 +214,11 @@ async function run() {
               )
               migrationResults.forEach((result, index) => {
                   if (result.status === 'rejected') {
-                      error(`Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: ${result.reason?.message ?? result.reason}`, { prefix: '↳ ' })
+                      if ((result.reason as any)?.code === 'EMFILE') {
+                          error(`Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: Too many open files (EMFILE). Consider adjusting system limits or refining ignore patterns.`, { prefix: '↳ ' })
+                      } else {
+                          error(`Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: ${result.reason?.message ?? result.reason}`, { prefix: '↳ ' })
+                      }
                   }
               })
               success(`Finished template migration for config: ${highlight(relative(config.configFilePath, base))}`, { prefix: '↳ ' })
