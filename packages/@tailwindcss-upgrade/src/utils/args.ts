@@ -18,6 +18,7 @@ type Types = {
   boolean: boolean
   number: number | null
   string: string | null
+  'string[]': string[] | null
   'boolean | string': boolean | string | null
   'number | string': number | string | null
   'boolean | number': boolean | number | null
@@ -102,59 +103,79 @@ export function args<const T extends Arg>(options: T, argv = process.argv.slice(
 
 // ---
 
-type ArgumentType = string | boolean
+type ArgumentType = string | boolean | string[] | undefined
 
 // Try to convert the raw incoming `value` (which will be a string or a boolean,
 // this is coming from `mri`'s parse function'), to the correct type based on
 // the `type` of the argument.
-function convert<T extends keyof Types>(value: string | boolean, type: T) {
+function convert<T extends keyof Types>(value: ArgumentType, type: T): Types[T] {
+  // --- DEBUG LOG ---
+  console.log(`[DEBUG args.ts] convert called: value=${JSON.stringify(value)}, type=${type}`);
+  // --- DEBUG LOG ---
+
   switch (type) {
     case 'string':
-      return convertString(value)
+      return convertString(value as string | boolean) as Types[T]
     case 'boolean':
-      return convertBoolean(value)
+      return convertBoolean(value as string | boolean) as Types[T]
     case 'number':
-      return convertNumber(value)
+      return convertNumber(value as string | boolean) as Types[T]
+    case 'string[]':
+      // --- DEBUG LOG ---
+      console.log('[DEBUG args.ts] Handling type: string[]');
+      // --- DEBUG LOG ---
+      if (Array.isArray(value)) {
+        const result = value.map(String);
+        console.log(`[DEBUG args.ts] string[] case: value is array, returning ${JSON.stringify(result)}`); // DEBUG
+        return result as Types[T] // Ensure all elements are strings
+      }
+      // If a single value was passed for an array flag, wrap it in an array
+      if (value !== null && value !== undefined && typeof value !== 'boolean') { // Check not boolean too
+         const result = [String(value)];
+         console.log(`[DEBUG args.ts] string[] case: value is single, returning ${JSON.stringify(result)}`); // DEBUG
+        return result as Types[T]
+      }
+      console.log('[DEBUG args.ts] string[] case: value is null/undefined/boolean, returning null'); // DEBUG
+      return null as Types[T] // Return null if no value provided (matches other types)
     case 'boolean | string':
-      return convertBoolean(value) ?? convertString(value)
+      return (convertBoolean(value as string | boolean) ?? convertString(value as string | boolean)) as Types[T]
     case 'number | string':
-      return convertNumber(value) ?? convertString(value)
+      return (convertNumber(value as string | boolean) ?? convertString(value as string | boolean)) as Types[T]
     case 'boolean | number':
-      return convertBoolean(value) ?? convertNumber(value)
+      return (convertBoolean(value as string | boolean) ?? convertNumber(value as string | boolean)) as Types[T]
     case 'boolean | number | string':
-      return convertBoolean(value) ?? convertNumber(value) ?? convertString(value)
+      return (
+        convertBoolean(value as string | boolean) ??
+        convertNumber(value as string | boolean) ??
+        convertString(value as string | boolean)
+      ) as Types[T]
     default:
+      // Make the default case exhaustive for type checking
+      // let _: never = type // Comment out if 'type' isn't strictly 'keyof Types' at runtime
+      console.error(`[DEBUG args.ts] Unhandled type encountered: ${type}`); // DEBUG
       throw new Error(`Unhandled type: ${type}`)
   }
 }
 
-function convertBoolean(value: ArgumentType) {
-  if (value === true || value === false) {
-    return value
-  }
-
-  if (value === 'true') {
-    return true
-  }
-
-  if (value === 'false') {
-    return false
-  }
+function convertBoolean(value: string | boolean | string[] | undefined): boolean | undefined {
+  if (value === true || value === false) return value
+  if (value === 'true') return true
+  if (value === 'false') return false
+  return undefined // Return undefined if not convertible
 }
 
-function convertNumber(value: ArgumentType) {
-  if (typeof value === 'number') {
-    return value
-  }
-
-  {
+function convertNumber(value: string | boolean | string[] | undefined): number | undefined {
+  if (typeof value === 'number') return value // Should generally not happen from mri
+  if (typeof value === 'string') {
     let valueAsNumber = Number(value)
-    if (!Number.isNaN(valueAsNumber)) {
-      return valueAsNumber
-    }
+    if (!Number.isNaN(valueAsNumber)) return valueAsNumber
   }
+  return undefined // Return undefined if not convertible
 }
 
-function convertString(value: ArgumentType) {
+function convertString(value: string | boolean | string[] | undefined): string | undefined {
+  if (value === null || value === undefined || typeof value === 'boolean' || Array.isArray(value)) {
+     return undefined // Or decide how to handle non-string/non-number primitives
+  }
   return `${value}`
 }
