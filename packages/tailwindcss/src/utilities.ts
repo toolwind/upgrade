@@ -471,7 +471,55 @@ export function createUtilities(theme: Theme) {
         // Apply an opacity modifier to the value if appropriate.
         value = asColor(value, candidate.modifier, theme)
       } else {
-        value = resolveThemeColor(candidate, theme, desc.themeKeys)
+        // --- START INTERPOLATION LOGIC ---
+        const namedValue = candidate.value!.value;
+        const match = namedValue.match(/^([a-z]+)-(\\d+)$/i); // Match color-number pattern
+        const standardStops = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+        let interpolated = false; // Flag to track if interpolation happened
+
+        if (match) {
+          const colorName = match[1];
+          const numberValue = parseInt(match[2], 10);
+
+          // Only interpolate if it's NOT a standard stop
+          if (!standardStops.includes(numberValue)) {
+            let lowerStop: number | null = null;
+            let upperStop: number | null = null;
+
+            // Find adjacent stops for interpolation
+            for (let i = 0; i < standardStops.length - 1; i++) {
+              if (numberValue > standardStops[i] && numberValue < standardStops[i+1]) {
+                lowerStop = standardStops[i];
+                upperStop = standardStops[i+1];
+                break;
+              }
+            }
+
+            // Proceed if adjacent stops are found
+            if (lowerStop !== null && upperStop !== null) {
+              const lowerColorVar = `--colors-${colorName}-${lowerStop}`;
+              const upperColorVar = `--colors-${colorName}-${upperStop}`;
+
+              const percentage = ((numberValue - lowerStop) / (upperStop - lowerStop)) * 100;
+              // Limit percentage decimal places for cleaner CSS
+              const percentageStr = percentage.toFixed(2);
+
+              // Construct the color-mix value using oklch shorter hue interpolation
+              const interpolatedValue = `color-mix(in oklch shorter hue, var(${lowerColorVar}), var(${upperColorVar}) ${percentageStr}%)`;
+
+              // Apply opacity modifier using asColor helper (handles null modifier case)
+              value = asColor(interpolatedValue, candidate.modifier, theme);
+              interpolated = true; // Mark as interpolated
+            }
+          }
+        }
+
+        // If interpolation didn't occur, fall back to standard theme resolution.
+        // resolveThemeColor handles opacity internally via asColor.
+        if (!interpolated) {
+          value = resolveThemeColor(candidate, theme, desc.themeKeys)
+        }
+        // --- END INTERPOLATION LOGIC ---
       }
 
       // If the candidate value (like the `red-500` in `bg-red-500`) doesn't
