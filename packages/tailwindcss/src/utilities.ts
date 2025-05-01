@@ -173,6 +173,11 @@ export function withAlpha(value: string, alpha: string): string {
     alpha = `${alphaAsNumber * 100}%`
   }
 
+  // No need for `color-mix` if the alpha is `100%`
+  if (alpha === '100%') {
+    return value
+  }
+
   return `color-mix(in oklab, ${value} ${alpha}, transparent)`
 }
 
@@ -266,6 +271,15 @@ function resolveThemeColor<T extends ThemeKey>(
   return value ? asColor(value, candidate.modifier, theme) : null
 }
 
+/**
+ * The alpha and beta releases used `_` in theme keys to represent a `.`. This meant we used
+ * `--leading-1_5` instead of `--leading-1\.5` to add utilities like `leading-1.5`.
+ *
+ * We prefer the use of the escaped dot now but still want to make sure suggestions for the
+ * legacy key format still works as expected when surrounded by numbers.
+ */
+const LEGACY_NUMERIC_KEY = /(\d+)_(\d+)/g
+
 export function createUtilities(theme: Theme) {
   let utilities = new Utilities()
 
@@ -273,15 +287,6 @@ export function createUtilities(theme: Theme) {
    * Register list of suggestions for a class
    */
   function suggest(classRoot: string, defns: () => SuggestionDefinition[]) {
-    /**
-     * The alpha and beta releases used `_` in theme keys to represent a `.`. This meant we used
-     * `--leading-1_5` instead of `--leading-1\.5` to add utilities like `leading-1.5`.
-     *
-     * We prefer the use of the escaped dot now but still want to make sure suggestions for the
-     * legacy key format still works as expected when surrounded by numbers.
-     */
-    const LEGACY_NUMERIC_KEY = /(\d+)_(\d+)/g
-
     function* resolve(themeKeys: ThemeKey[]) {
       for (let value of theme.keysInNamespaces(themeKeys)) {
         yield value.replace(LEGACY_NUMERIC_KEY, (_, a, b) => {
@@ -943,7 +948,6 @@ export function createUtilities(theme: Theme) {
    * @css `max-height`
    */
   for (let [key, value] of [
-    ['auto', 'auto'],
     ['full', '100%'],
     ['svw', '100svw'],
     ['lvw', '100lvw'],
@@ -964,11 +968,23 @@ export function createUtilities(theme: Theme) {
     staticUtility(`h-${key}`, [['height', value]])
     staticUtility(`min-w-${key}`, [['min-width', value]])
     staticUtility(`min-h-${key}`, [['min-height', value]])
-    if (key !== 'auto') {
-      staticUtility(`max-w-${key}`, [['max-width', value]])
-      staticUtility(`max-h-${key}`, [['max-height', value]])
-    }
+    staticUtility(`max-w-${key}`, [['max-width', value]])
+    staticUtility(`max-h-${key}`, [['max-height', value]])
   }
+
+  staticUtility(`size-auto`, [
+    ['--tw-sort', 'size'],
+    ['width', 'auto'],
+    ['height', 'auto'],
+  ])
+  staticUtility(`w-auto`, [['width', 'auto']])
+  staticUtility(`h-auto`, [['height', 'auto']])
+  staticUtility(`min-w-auto`, [['min-width', 'auto']])
+  staticUtility(`min-h-auto`, [['min-height', 'auto']])
+
+  staticUtility(`h-lh`, [['height', '1lh']])
+  staticUtility(`min-h-lh`, [['min-height', '1lh']])
+  staticUtility(`max-h-lh`, [['max-height', '1lh']])
 
   staticUtility(`w-screen`, [['width', '100vw']])
   staticUtility(`min-w-screen`, [['min-width', '100vw']])
@@ -1397,20 +1413,20 @@ export function createUtilities(theme: Theme) {
 
   {
     let transformValue = [
-      'var(--tw-rotate-x)',
-      'var(--tw-rotate-y)',
-      'var(--tw-rotate-z)',
-      'var(--tw-skew-x)',
-      'var(--tw-skew-y)',
+      'var(--tw-rotate-x,)',
+      'var(--tw-rotate-y,)',
+      'var(--tw-rotate-z,)',
+      'var(--tw-skew-x,)',
+      'var(--tw-skew-y,)',
     ].join(' ')
 
     let transformProperties = () =>
       atRoot([
-        property('--tw-rotate-x', 'rotateX(0)'),
-        property('--tw-rotate-y', 'rotateY(0)'),
-        property('--tw-rotate-z', 'rotateZ(0)'),
-        property('--tw-skew-x', 'skewX(0)'),
-        property('--tw-skew-y', 'skewY(0)'),
+        property('--tw-rotate-x'),
+        property('--tw-rotate-y'),
+        property('--tw-rotate-z'),
+        property('--tw-skew-x'),
+        property('--tw-skew-y'),
       ])
 
     for (let axis of ['x', 'y', 'z']) {
@@ -4399,6 +4415,14 @@ export function createUtilities(theme: Theme) {
       {
         let value = resolveThemeColor(candidate, theme, ['--drop-shadow-color', '--color'])
         if (value) {
+          if (value === 'inherit') {
+            return [
+              filterProperties(),
+              decl('--tw-drop-shadow-color', 'inherit'),
+              decl('--tw-drop-shadow', `var(--tw-drop-shadow-size)`),
+            ]
+          }
+
           return [
             filterProperties(),
             decl('--tw-drop-shadow-color', withAlpha(value, 'var(--tw-drop-shadow-alpha)')),
@@ -4477,7 +4501,7 @@ export function createUtilities(theme: Theme) {
 
     functionalUtility('transition', {
       defaultValue:
-        'color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter',
+        'color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, backdrop-filter, display, visibility, content-visibility, overlay, pointer-events',
       themeKeys: ['--transition-property'],
       handle: (value) => [
         decl('transition-property', value),
@@ -5127,6 +5151,10 @@ export function createUtilities(theme: Theme) {
       case 'none':
         if (candidate.modifier) return
         return [textShadowProperties(), decl('text-shadow', 'none')]
+
+      case 'inherit':
+        if (candidate.modifier) return
+        return [textShadowProperties(), decl('--tw-text-shadow-color', 'inherit')]
     }
 
     // Shadow size
@@ -5170,7 +5198,7 @@ export function createUtilities(theme: Theme) {
     {
       valueThemeKeys: ['--text-shadow'],
       modifiers: Array.from({ length: 21 }, (_, index) => `${index * 5}`),
-      hasDefaultValue: true,
+      hasDefaultValue: theme.get(['--text-shadow']) !== null,
     },
   ])
 
@@ -5275,6 +5303,10 @@ export function createUtilities(theme: Theme) {
             decl('--tw-shadow', nullShadow),
             decl('box-shadow', cssBoxShadowValue),
           ]
+
+        case 'inherit':
+          if (candidate.modifier) return
+          return [boxShadowProperties(), decl('--tw-shadow-color', 'inherit')]
       }
 
       // Shadow size
@@ -5319,7 +5351,7 @@ export function createUtilities(theme: Theme) {
       {
         valueThemeKeys: ['--shadow'],
         modifiers: Array.from({ length: 21 }, (_, index) => `${index * 5}`),
-        hasDefaultValue: true,
+        hasDefaultValue: theme.get(['--shadow']) !== null,
       },
     ])
 
@@ -5397,6 +5429,10 @@ export function createUtilities(theme: Theme) {
             decl('--tw-inset-shadow', nullShadow),
             decl('box-shadow', cssBoxShadowValue),
           ]
+
+        case 'inherit':
+          if (candidate.modifier) return
+          return [boxShadowProperties(), decl('--tw-inset-shadow-color', 'inherit')]
       }
 
       // Shadow size
@@ -5442,7 +5478,7 @@ export function createUtilities(theme: Theme) {
       {
         valueThemeKeys: ['--inset-shadow'],
         modifiers: Array.from({ length: 21 }, (_, index) => `${index * 5}`),
-        hasDefaultValue: true,
+        hasDefaultValue: theme.get(['--inset-shadow']) !== null,
       },
     ])
 
@@ -6040,7 +6076,11 @@ export function createCssUtility(node: AtRule) {
 
           // Suggest theme values. E.g.: `--value(--color-*)`
           for (let value of designSystem.theme.keysInNamespaces(themeKeys)) {
-            target.push(value)
+            target.push(
+              value.replace(LEGACY_NUMERIC_KEY, (_, a, b) => {
+                return `${a}.${b}`
+              }),
+            )
           }
         }
 

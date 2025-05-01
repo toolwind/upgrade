@@ -1,6 +1,6 @@
 {
   "name": "@toolwind/upgrade",
-  "version": "1.0.1",
+  "version": "4.1.5",
   "description": "Custom Tailwind CSS v3 -> v4 upgrade tool",
   "license": "MIT",
   "repository": {
@@ -41,13 +41,15 @@
     "postcss-import": "^16.1.0",
     "postcss-selector-parser": "^7.1.0",
     "prettier": "catalog:",
+    "semver": "^7.7.1",
+    "tailwindcss": "workspace:*",
     "tree-sitter": "^0.22.4",
-    "tree-sitter-typescript": "^0.23.2",
-    "tailwindcss": "workspace:*"
+    "tree-sitter-typescript": "^0.23.2"
   },
   "devDependencies": {
     "@types/braces": "^3.0.5",
     "@types/node": "catalog:",
-    "@types/postcss-import": "^14.0.3"
+    "@types/postcss-import": "^14.0.3",
+    "@types/semver": "^7.7.0"
   }
 }
