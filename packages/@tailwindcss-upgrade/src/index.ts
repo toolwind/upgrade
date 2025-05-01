@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 import { globby } from 'globby'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { migrate as migrateTemplate } from './codemods/template/migrate'
+import { migrate as migrateTemplate, migrateString } from './codemods/template/migrate'
 import { prepareConfig } from './codemods/template/prepare-config'
 import { help } from './commands/help'
 import { args, type Arg } from './utils/args'
@@ -18,6 +18,8 @@ const options = {
   '--help': { type: 'boolean', description: 'Display usage information', alias: '-h' },
   '--force': { type: 'boolean', description: 'Force the migration', alias: '-f' },
   '--version': { type: 'boolean', description: 'Display the version number', alias: '-v' },
+  '--source': { type: 'string[]', description: 'Override template source patterns/globs', alias: '-s' },
+  '--inline-source': { type: 'string', description: 'Provide utility classes as a string for direct migration', alias: '-i' },
 } satisfies Arg
 const flags = args(options)
 
@@ -26,6 +28,9 @@ if (flags['--help']) {
     usage: [
       'npx @toolwind/upgrade --config <path>',
       'npx @toolwind/upgrade --configs <path|glob>...',
+      'npx @toolwind/upgrade --config <path> --source <path|glob>...',
+      'npx @toolwind/upgrade --configs <path|glob>... --source <path|glob>...',
+      'npx @toolwind/upgrade --config <path> --inline-source "<string>"',
     ],
     options,
   })
@@ -55,7 +60,7 @@ async function run() {
   if (!flags['--force']) {
     let repoIsDirty = false;
     try {
-      repoIsDirty = isRepoDirty(base); // Pass base if isRepoDirty requires it
+      repoIsDirty = isRepoDirty(); // Pass base if isRepoDirty requires it
     } catch (dirtyCheckError) {
       info(`Warning: Could not perform Git dirty check: ${dirtyCheckError}`);
     }
@@ -190,11 +195,26 @@ async function run() {
       for (let config of explicitConfigs) {
           let templatesForThisConfig = new Set<string>()
           info(`Finding templates for config: ${highlight(relative(config.configFilePath, base))}`)
-          for (let globEntry of config.sources.flatMap((entry) => hoistStaticGlobParts(entry))) {
-              let files = await globby([globEntry.pattern], {
+
+          // Determine source patterns: Use flag if provided, otherwise use config.sources
+          const sourcePatternsInput = flags['--source'] ?? config.sources.flatMap((entry) => hoistStaticGlobParts(entry))
+
+          for (let globEntry of sourcePatternsInput) {
+              // Adjust globEntry type check if necessary, assuming string[] from flag or {pattern: string, base: string}[] from config
+              let pattern: string;
+              let cwd: string;
+              if (typeof globEntry === 'string') {
+                pattern = globEntry; // Pattern from --source flag
+                cwd = base; // Assume patterns from flag are relative to the base (repo root)
+              } else {
+                pattern = globEntry.pattern; // Pattern from sourcePatternsInput
+                cwd = globEntry.base;
+              }
+
+              let files = await globby([pattern], {
                   absolute: true,
                   gitignore: true,
-                  cwd: globEntry.base,
+                  cwd: cwd,
                   ignore: [
                       '**/node_modules/**',
                       '**/dist/**',
@@ -248,7 +268,7 @@ async function run() {
 
 
   // --- FINAL STATUS CHECK ---
-  if (isRepoDirty(base)) { // Pass base if needed
+  if (isRepoDirty()) { // Pass base if needed
       success('Migration complete. Verify the changes and commit them to your repository.')
   } else {
       success('Migration complete. No changes were detected in your repository.')
