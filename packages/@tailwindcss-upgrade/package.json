@@ -5,10 +5,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tailwindlabs/tailwindcss.git",
+    "url": "git+https://github.com/toolwind/upgrade.git",
     "directory": "packages/@tailwindcss-cli"
   },
-  "bugs": "https://github.com/tailwindlabs/tailwindcss/issues",
+  "bugs": "https://github.com/toolwind/upgrade/issues",
   "homepage": "https://tailwindcss.com",
   "scripts": {
     "lint": "tsc --noEmit",
