@@ -117,6 +117,11 @@ export async function migrate(designSystem: DesignSystem, userConfig: Config | n
   )
 }
 
-export async function migrateString(designSystem: DesignSystem, userConfig: Config | null, str: string, extension?: string | null) {
+export async function migrateString(
+  designSystem: DesignSystem,
+  userConfig: Config | null,
+  str: string,
+  extension?: string | null,
+) {
   return await migrateContents(designSystem, userConfig, str, extension ?? 'html')
 }

@@ -70,7 +70,7 @@ export type Result<T extends Arg> = {
 export function args<const T extends Arg>(options: T, argv = process.argv.slice(2)): Result<T> {
   let parsed = parse(argv)
   // --- DEBUG LOG ---
-  console.log(`[DEBUG args.ts] Raw parsed args (from mri): ${JSON.stringify(parsed)}`);
+  console.log(`[DEBUG args.ts] Raw parsed args (from mri): ${JSON.stringify(parsed)}`)
   // --- DEBUG LOG ---
 
   let result: { _: string[]; [key: string]: unknown } = {
@@ -83,15 +83,19 @@ export function args<const T extends Arg>(options: T, argv = process.argv.slice(
   ] of Object.entries(options)) {
     result[flag] = defaultValue
     // --- DEBUG LOG ---
-    console.log(`[DEBUG args.ts] Initializing ${flag} with default: ${JSON.stringify(defaultValue)}`);
+    console.log(
+      `[DEBUG args.ts] Initializing ${flag} with default: ${JSON.stringify(defaultValue)}`,
+    )
     // --- DEBUG LOG ---
 
     if (alias) {
       let key = alias.slice(1)
       if (parsed[key] !== undefined) {
-        const convertedValue = convert(parsed[key], type);
+        const convertedValue = convert(parsed[key], type)
         // --- DEBUG LOG ---
-        console.log(`[DEBUG args.ts] Found alias '${key}' for ${flag}. Value: ${JSON.stringify(parsed[key])}. Converted: ${JSON.stringify(convertedValue)}`);
+        console.log(
+          `[DEBUG args.ts] Found alias '${key}' for ${flag}. Value: ${JSON.stringify(parsed[key])}. Converted: ${JSON.stringify(convertedValue)}`,
+        )
         // --- DEBUG LOG ---
         result[flag] = convertedValue
       }
@@ -101,23 +105,27 @@ export function args<const T extends Arg>(options: T, argv = process.argv.slice(
       let key = flag.slice(2)
       if (parsed[key] !== undefined) {
         // If alias already set it, this might overwrite, or mri might prioritize one?
-        const currentValue = result[flag]; // Value potentially set by alias
-        const convertedValue = convert(parsed[key], type);
-         // --- DEBUG LOG ---
-        console.log(`[DEBUG args.ts] Found long flag '${key}' for ${flag}. Value: ${JSON.stringify(parsed[key])}. Converted: ${JSON.stringify(convertedValue)}. Current result value: ${JSON.stringify(currentValue)}`);
+        const currentValue = result[flag] // Value potentially set by alias
+        const convertedValue = convert(parsed[key], type)
+        // --- DEBUG LOG ---
+        console.log(
+          `[DEBUG args.ts] Found long flag '${key}' for ${flag}. Value: ${JSON.stringify(parsed[key])}. Converted: ${JSON.stringify(convertedValue)}. Current result value: ${JSON.stringify(currentValue)}`,
+        )
         // --- DEBUG LOG ---
         // Avoid overwriting if alias already provided a valid value? Or let mri's precedence rule?
         // Let's assume mri handles precedence, or the last one wins if both alias and long are somehow present in `parsed`.
-        result[flag] = convertedValue;
+        result[flag] = convertedValue
       }
     }
     // --- DEBUG LOG ---
-    console.log(`[DEBUG args.ts] Final value for ${flag} after checks: ${JSON.stringify(result[flag])}`);
+    console.log(
+      `[DEBUG args.ts] Final value for ${flag} after checks: ${JSON.stringify(result[flag])}`,
+    )
     // --- DEBUG LOG ---
   }
 
   // --- DEBUG LOG ---
-  console.log(`[DEBUG args.ts] Returning final args object: ${JSON.stringify(result)}`);
+  console.log(`[DEBUG args.ts] Returning final args object: ${JSON.stringify(result)}`)
   // --- DEBUG LOG ---
   return result as Result<T>
 }
@@ -131,7 +139,7 @@ type ArgumentType = string | boolean | string[] | undefined
 // the `type` of the argument.
 function convert<T extends keyof Types>(value: ArgumentType, type: T): Types[T] {
   // --- DEBUG LOG ---
-  console.log(`[DEBUG args.ts] convert called: value=${JSON.stringify(value)}, type=${type}`);
+  console.log(`[DEBUG args.ts] convert called: value=${JSON.stringify(value)}, type=${type}`)
   // --- DEBUG LOG ---
 
   switch (type) {
@@ -143,37 +151,43 @@ function convert<T extends keyof Types>(value: ArgumentType, type: T): Types[T] 
       return convertNumber(value as string | boolean) as Types[T]
     case 'string[]':
       // --- DEBUG LOG ---
-      console.log('[DEBUG args.ts] Handling type: string[]');
+      console.log('[DEBUG args.ts] Handling type: string[]')
       // --- DEBUG LOG ---
       if (Array.isArray(value)) {
-        const result = value.map(String);
-        console.log(`[DEBUG args.ts] string[] case: value is array, returning ${JSON.stringify(result)}`); // DEBUG
+        const result = value.map(String)
+        console.log(
+          `[DEBUG args.ts] string[] case: value is array, returning ${JSON.stringify(result)}`,
+        ) // DEBUG
         return result as Types[T] // Ensure all elements are strings
       }
       // If a single value was passed for an array flag, wrap it in an array
-      if (value !== null && value !== undefined && typeof value !== 'boolean') { // Check not boolean too
-         const result = [String(value)];
-         console.log(`[DEBUG args.ts] string[] case: value is single, returning ${JSON.stringify(result)}`); // DEBUG
+      if (value !== null && value !== undefined && typeof value !== 'boolean') {
+        // Check not boolean too
+        const result = [String(value)]
+        console.log(
+          `[DEBUG args.ts] string[] case: value is single, returning ${JSON.stringify(result)}`,
+        ) // DEBUG
         return result as Types[T]
       }
-      console.log('[DEBUG args.ts] string[] case: value is null/undefined/boolean, returning null'); // DEBUG
+      console.log('[DEBUG args.ts] string[] case: value is null/undefined/boolean, returning null') // DEBUG
       return null as Types[T] // Return null if no value provided (matches other types)
     case 'boolean | string':
-      return (convertBoolean(value as string | boolean) ?? convertString(value as string | boolean)) as Types[T]
+      return (convertBoolean(value as string | boolean) ??
+        convertString(value as string | boolean)) as Types[T]
     case 'number | string':
-      return (convertNumber(value as string | boolean) ?? convertString(value as string | boolean)) as Types[T]
+      return (convertNumber(value as string | boolean) ??
+        convertString(value as string | boolean)) as Types[T]
     case 'boolean | number':
-      return (convertBoolean(value as string | boolean) ?? convertNumber(value as string | boolean)) as Types[T]
+      return (convertBoolean(value as string | boolean) ??
+        convertNumber(value as string | boolean)) as Types[T]
     case 'boolean | number | string':
-      return (
-        convertBoolean(value as string | boolean) ??
+      return (convertBoolean(value as string | boolean) ??
         convertNumber(value as string | boolean) ??
-        convertString(value as string | boolean)
-      ) as Types[T]
+        convertString(value as string | boolean)) as Types[T]
     default:
       // Make the default case exhaustive for type checking
       // let _: never = type // Comment out if 'type' isn't strictly 'keyof Types' at runtime
-      console.error(`[DEBUG args.ts] Unhandled type encountered: ${type}`); // DEBUG
+      console.error(`[DEBUG args.ts] Unhandled type encountered: ${type}`) // DEBUG
       throw new Error(`Unhandled type: ${type}`)
   }
 }
@@ -196,7 +210,7 @@ function convertNumber(value: string | boolean | string[] | undefined): number |
 
 function convertString(value: string | boolean | string[] | undefined): string | undefined {
   if (value === null || value === undefined || typeof value === 'boolean' || Array.isArray(value)) {
-     return undefined // Or decide how to handle non-string/non-number primitives
+    return undefined // Or decide how to handle non-string/non-number primitives
   }
   return `${value}`
 }

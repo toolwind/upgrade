@@ -65,11 +65,14 @@ export async function prepareConfig(
       configFilePath,
     }
   } catch (e: any) {
-    const relativeConfigPath = configFilePath ? relative(configFilePath, options.base) : 'unknown';
-    error(`Could not load the configuration file (${highlight(relativeConfigPath)}): ${e?.message ?? e}`, { prefix: '↳ ' });
-    console.error(`[DEBUG prepareConfig] Full error details for ${relativeConfigPath}:`);
-    console.error(e);
-    throw e;
+    const relativeConfigPath = configFilePath ? relative(configFilePath, options.base) : 'unknown'
+    error(
+      `Could not load the configuration file (${highlight(relativeConfigPath)}): ${e?.message ?? e}`,
+      { prefix: '↳ ' },
+    )
+    console.error(`[DEBUG prepareConfig] Full error details for ${relativeConfigPath}:`)
+    console.error(e)
+    throw e
   }
 }
 
