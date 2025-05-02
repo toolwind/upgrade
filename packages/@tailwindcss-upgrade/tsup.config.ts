@@ -5,4 +5,7 @@ export default defineConfig({
   clean: true,
   minify: true,
   entry: ['src/index.ts'],
+  esbuildOptions(options) {
+    options.pure = options.pure ? [...options.pure, 'debugLog'] : ['debugLog']
+  },
 })
