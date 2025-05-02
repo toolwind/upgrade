@@ -311,4 +311,86 @@ set-stable:
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
 
-    echo "Versions set to stable successfully!" 
+    echo "Versions set to stable successfully!"
+
+# Start a dev cycle based on the current stable version.
+# Takes optional argument: patch (default), minor, major
+# Example: 4.1.5 -> `just start-dev` -> 4.1.6-dev.0
+# Example: 4.1.5 -> `just start-dev minor` -> 4.2.0-dev.0
+# WARNING: Assumes current version is stable X.Y.Z.
+# WARNING: Does not perform git checks or commits!
+start-dev level='patch':
+    #!/usr/bin/env bash
+    set -e # Exit immediately if a command exits with a non-zero status.
+
+    echo "Starting dev cycle (level: {{level}}) in package.json files..."
+    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    ROOT_PKG_FILE="package.json"
+    PKG_NAME="@toolwind/upgrade"
+    ROOT_PKG_NAME="${PKG_NAME}-root"
+
+    # Get the full current package version first for replacement later
+    CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    echo "Current package version: $CURRENT_VERSION"
+
+    # --- CHECK IF CURRENT VERSION IS STABLE ---
+    if ! echo "$CURRENT_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
+        echo "Error: Current version '$CURRENT_VERSION' is not a stable X.Y.Z version. Cannot start dev cycle."; \
+        exit 1; \
+    fi
+
+    # --- CALCULATE NEXT VERSION BASE ---
+    MAJOR=$(echo "$CURRENT_VERSION" | cut -d. -f1)
+    MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+    PATCH=$(echo "$CURRENT_VERSION" | cut -d. -f3)
+
+    NEXT_MAJOR=$MAJOR
+    NEXT_MINOR=$MINOR
+    NEXT_PATCH=$PATCH
+
+    case "{{level}}" in
+        patch)
+            NEXT_PATCH=$((PATCH + 1))
+            ;;
+        minor)
+            NEXT_MINOR=$((MINOR + 1))
+            NEXT_PATCH=0
+            ;;
+        major)
+            NEXT_MAJOR=$((MAJOR + 1))
+            NEXT_MINOR=0
+            NEXT_PATCH=0
+            ;;
+        *)
+            echo "Error: Invalid level argument '{{level}}'. Use 'patch', 'minor', or 'major'."
+            exit 1
+            ;;
+    esac
+
+    NEXT_VERSION_BASE="$NEXT_MAJOR.$NEXT_MINOR.$NEXT_PATCH"
+    NEW_DEV_VERSION="${NEXT_VERSION_BASE}-dev.0"
+    echo "New dev version:       $NEW_DEV_VERSION"
+
+    # --- Update Package package.json ---
+    echo "Updating $PKG_FILE..."
+    cp $PKG_FILE "$PKG_FILE.bak"
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_VERSION\"#\"version\": \"$NEW_DEV_VERSION\"#" $PKG_FILE || exit 1
+    rm "$PKG_FILE.tmp"
+    rm "$PKG_FILE.bak"
+
+    # --- Update Root package.json ---
+    echo "Updating root $ROOT_PKG_FILE..."
+    CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
+    CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Error: Failed to extract current name or version from root package.json using jq."
+        exit 1
+    fi
+    cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_DEV_VERSION\"#" $ROOT_PKG_FILE || exit 1
+    rm "$ROOT_PKG_FILE.tmp" # sed creates two .tmp files on macOS, remove both
+    rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
+    rm "$ROOT_PKG_FILE.bak"
+
+    echo "Dev cycle started successfully!" 
