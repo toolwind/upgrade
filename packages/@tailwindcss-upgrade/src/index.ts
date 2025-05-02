@@ -73,10 +73,10 @@ async function run() {
   } catch (gitError) {
     // Log warning only if not quiet
     if (!flags['--quiet']) {
-      info(
-        `Warning: Could not determine Git repository root (maybe not a git repo or git is not installed).`,
-      )
-      info(`Using current directory (${initialCwd}) as base for resolving paths and globs.`)
+    info(
+      `Warning: Could not determine Git repository root (maybe not a git repo or git is not installed).`,
+    )
+    info(`Using current directory (${initialCwd}) as base for resolving paths and globs.`)
     }
     repoRoot = initialCwd
   }
@@ -85,8 +85,8 @@ async function run() {
 
   // Print header only if not quiet
   if (!flags['--quiet']) {
-    eprintln(header())
-    eprintln()
+  eprintln(header())
+  eprintln()
   }
 
   // --- Basic Flag Validation --- // (Errors should always print)
@@ -102,8 +102,8 @@ async function run() {
     error('Please provide configuration file path(s) using --config.')
     // Info examples only if not quiet
     if (!flags['--quiet']) {
-      info(`Examples:`)
-      info(`  npx @toolwind/upgrade --config path/to/tailwind.config.js`)
+    info(`Examples:`)
+    info(`  npx @toolwind/upgrade --config path/to/tailwind.config.js`)
       info(`  npx @toolwind/upgrade --config '**/tailwind.config.{js,ts,cjs}'`)
     }
     process.exit(1)
@@ -148,7 +148,7 @@ async function run() {
 
   // Log resolving start only if not quiet
   if (!flags['--quiet']) {
-    info('Resolving configuration file paths/globs relative to base directory…')
+  info('Resolving configuration file paths/globs relative to base directory…')
   }
   // Iterate directly over the configInputs array
   for (let inputPatternOrPath of configInputs) {
@@ -173,15 +173,15 @@ async function run() {
           foundFiles.forEach((file) => configPathsToProcess.add(file))
           // Log glob results only if not quiet
           if (!flags['--quiet']) {
-            info(
-              `Glob '${inputPatternOrPath}' resolved to: ${foundFiles.map((f) => highlight(relative(f, base))).join(', ')}`,
-              { prefix: '↳ ' },
-            )
+          info(
+            `Glob '${inputPatternOrPath}' resolved to: ${foundFiles.map((f) => highlight(relative(f, base))).join(', ')}`,
+            { prefix: '↳ ' },
+          )
           }
         } else {
           // Log no match only if not quiet
           if (!flags['--quiet']) {
-            info(`Glob '${inputPatternOrPath}' did not match any files.`, { prefix: '↳ ' })
+          info(`Glob '${inputPatternOrPath}' did not match any files.`, { prefix: '↳ ' })
           }
         }
       } catch (e: any) {
@@ -227,7 +227,7 @@ async function run() {
 
   // Log loading start only if not quiet
   if (!flags['--quiet']) {
-    info('Loading configuration files…')
+  info('Loading configuration files…')
   }
   for (let absoluteConfigPath of configPathsToProcess) {
     const relativeConfigPath = relative(absoluteConfigPath, base)
@@ -236,7 +236,7 @@ async function run() {
       explicitConfigs.push(config)
       // Log success only if not quiet
       if (!flags['--quiet']) {
-        success(`Loaded config: ${highlight(relativeConfigPath)}`, { prefix: '↳ ' })
+      success(`Loaded config: ${highlight(relativeConfigPath)}`, { prefix: '↳ ' })
       }
     } catch (e: any) {
       // Always log errors
@@ -245,8 +245,8 @@ async function run() {
       })
       // Only log full debug details if debug flag is also set
       if (flags['--debug']) {
-        console.error(`[DEBUG] Full error details for ${relativeConfigPath}:`)
-        console.error(e)
+      console.error(`[DEBUG] Full error details for ${relativeConfigPath}:`)
+      console.error(e)
       }
     }
   }
@@ -258,22 +258,22 @@ async function run() {
   // --- END CONFIG LOADING ---
 
   // --- TEMPLATE MIGRATION --- >> Check for inline *after* loading configs << ---
-  if (flags['--inline-source']) {
+    if (flags['--inline-source']) {
     const inlineSource = flags['--inline-source'] as string
 
     // Log start only if not quiet
     if (!flags['--quiet']) {
       info('Migrating provided inline source string...')
     }
-    for (let config of explicitConfigs) {
-      const relativeConfigPath = relative(config.configFilePath, base)
-      try {
-        const migratedString = await migrateString(
-          config.designSystem,
-          config.userConfig,
-          inlineSource,
+      for (let config of explicitConfigs) {
+        const relativeConfigPath = relative(config.configFilePath, base)
+        try {
+          const migratedString = await migrateString(
+            config.designSystem,
+            config.userConfig,
+            inlineSource,
           flags['--inline-extension'],
-        )
+          )
         // Output based on quiet flag
         if (flags['--quiet']) {
           // Use synchronous write to ensure output before exit
@@ -287,12 +287,12 @@ async function run() {
           // Need to exit here too for the non-quiet case
           process.exit(0)
         }
-      } catch (e: any) {
+        } catch (e: any) {
         // Always print errors
-        error(
-          `Failed to migrate inline source using config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`,
-          { prefix: '↳ ' },
-        )
+          error(
+            `Failed to migrate inline source using config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`,
+            { prefix: '↳ ' },
+          )
         // Only log full debug details if debug flag is also set
         if (flags['--debug']) {
           console.error(
@@ -314,26 +314,26 @@ async function run() {
     if (!flags['--quiet']) {
       info('Migrating templates based on loaded configurations and source patterns…')
     }
-    for (let config of explicitConfigs) {
-      let templatesForThisConfig = new Set<string>()
+      for (let config of explicitConfigs) {
+        let templatesForThisConfig = new Set<string>()
       // Log which config we are processing only if not quiet
       if (!flags['--quiet']) {
         info(`Finding templates for config: ${highlight(relative(config.configFilePath, base))}`)
       }
 
-      const sourcePatternsInput =
-        flags['--source'] ?? config.sources.flatMap((entry) => hoistStaticGlobParts(entry))
+        const sourcePatternsInput =
+          flags['--source'] ?? config.sources.flatMap((entry) => hoistStaticGlobParts(entry))
 
-      for (let globEntry of sourcePatternsInput) {
-        let pattern: string
-        let cwd: string
-        if (typeof globEntry === 'string') {
+        for (let globEntry of sourcePatternsInput) {
+          let pattern: string
+          let cwd: string
+          if (typeof globEntry === 'string') {
           pattern = globEntry
           cwd = base
-        } else {
+          } else {
           pattern = globEntry.pattern
-          cwd = globEntry.base
-        }
+            cwd = globEntry.base
+          }
 
         try {
           let files = await globby([pattern], {
@@ -361,12 +361,12 @@ async function run() {
             })
           }
         }
-      }
+        }
 
-      let filesToMigrate = Array.from(templatesForThisConfig)
-      filesToMigrate.sort()
+        let filesToMigrate = Array.from(templatesForThisConfig)
+        filesToMigrate.sort()
 
-      if (filesToMigrate.length > 0) {
+        if (filesToMigrate.length > 0) {
         // Log count only if not quiet
         if (!flags['--quiet']) {
           info(
@@ -374,27 +374,27 @@ async function run() {
             { prefix: '↳ ' },
           )
         }
-        let migrationResults = await Promise.allSettled(
-          filesToMigrate.map((file) =>
-            migrateTemplate(config.designSystem, config.userConfig, file),
-          ),
-        )
-        migrationResults.forEach((result, index) => {
-          if (result.status === 'rejected') {
+          let migrationResults = await Promise.allSettled(
+            filesToMigrate.map((file) =>
+              migrateTemplate(config.designSystem, config.userConfig, file),
+            ),
+          )
+          migrationResults.forEach((result, index) => {
+            if (result.status === 'rejected') {
             // Always log errors
-            if ((result.reason as any)?.code === 'EMFILE') {
-              error(
-                `Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: Too many open files (EMFILE). Consider adjusting system limits or refining ignore patterns.`,
-                { prefix: '↳ ' },
-              )
-            } else {
-              error(
-                `Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: ${result.reason?.message ?? result.reason}`,
-                { prefix: '↳ ' },
-              )
+              if ((result.reason as any)?.code === 'EMFILE') {
+                error(
+                  `Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: Too many open files (EMFILE). Consider adjusting system limits or refining ignore patterns.`,
+                  { prefix: '↳ ' },
+                )
+              } else {
+                error(
+                  `Failed to migrate ${highlight(relative(filesToMigrate[index], base))}: ${result.reason?.message ?? result.reason}`,
+                  { prefix: '↳ ' },
+                )
+              }
             }
-          }
-        })
+          })
         // Log success only if not quiet
         if (!flags['--quiet']) {
           success(
@@ -402,7 +402,7 @@ async function run() {
             { prefix: '↳ ' },
           )
         }
-      } else {
+        } else {
         // Log no files found only if not quiet
         if (!flags['--quiet']) {
           info(
@@ -418,10 +418,10 @@ async function run() {
   if (!flags['--inline-source']) {
     // Log final status only if not quiet
     if (!flags['--quiet']) {
-      if (isRepoDirty()) {
-        success('Migration complete. Verify the changes and commit them to your repository.')
-      } else {
-        success('Migration complete. No changes were detected in your repository.')
+    if (isRepoDirty()) {
+      success('Migration complete. Verify the changes and commit them to your repository.')
+    } else {
+      success('Migration complete. No changes were detected in your repository.')
       }
     }
   }

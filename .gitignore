@@ -11,4 +11,3 @@ target/
 
 # Files automatically synced by GitHub Actions
 /README.md
-/package.json
