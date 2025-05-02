@@ -34,12 +34,16 @@ clean:
 # Publish a pre-release dev version (requires build first)
 # NOTE: Ensure version is correctly bumped before running!
 publish-dev: build
+    @echo "Formatting @toolwind/upgrade package..."
+    pnpm prettier --write packages/@tailwindcss-upgrade
     @echo "Publishing DEV version of @toolwind/upgrade..."
     pnpm publish --filter @toolwind/upgrade --tag dev --no-git-checks
 
 # Publish a stable release version (requires build first)
 # NOTE: Ensure version is correctly bumped to stable before running!
 publish-stable: build
+    @echo "Formatting @toolwind/upgrade package..."
+    pnpm prettier --write packages/@tailwindcss-upgrade
     @echo "Publishing STABLE version of @toolwind/upgrade..."
     pnpm publish --filter @toolwind/upgrade --no-git-checks
 
