@@ -2,7 +2,8 @@
 
 import { globby } from 'globby'
 import { execSync } from 'node:child_process'
-import fs from 'node:fs/promises'
+import fs from 'node:fs'
+import fsPromises from 'node:fs/promises'
 import path from 'node:path'
 import { migrateString, migrate as migrateTemplate } from './codemods/template/migrate'
 import { prepareConfig } from './codemods/template/prepare-config'
@@ -199,7 +200,7 @@ async function run() {
     } else {
       const absolutePath = path.resolve(base, inputPatternOrPath)
       try {
-        await fs.access(absolutePath)
+        await fsPromises.access(absolutePath)
         configPathsToProcess.add(absolutePath)
         // Log specific path only if not quiet
         if (!flags['--quiet']) {
@@ -275,12 +276,16 @@ async function run() {
         )
         // Output based on quiet flag
         if (flags['--quiet']) {
-          process.stdout.write(migratedString) // Raw output
+          // Use synchronous write to ensure output before exit
+          fs.writeSync(process.stdout.fd, migratedString + '\n')
+          process.exit(0)
         } else {
           eprintln() // Add spacing
           info(`Result using config ${highlight(relativeConfigPath)}:`)
           console.log(migratedString) // Output with newline and context
           eprintln() // Add spacing
+          // Need to exit here too for the non-quiet case
+          process.exit(0)
         }
       } catch (e: any) {
         // Always print errors
