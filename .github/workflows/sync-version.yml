@@ -33,8 +33,11 @@ jobs:
 
       - name: Update Root package.json
         run: |
-          jq --arg name "${{ steps.pkg_info.outputs.pkg_name }}" --arg version "${{ steps.pkg_info.outputs.pkg_version }}" \
-          '.name = $name | .version = $version' package.json > temp_package.json && mv temp_package.json package.json
+          # Construct the root package name with the suffix
+          ROOT_PKG_NAME="${{ steps.pkg_info.outputs.pkg_name }}-root"
+          # Update root package.json using the constructed name and extracted version
+          jq --arg name "$ROOT_PKG_NAME" --arg version "${{ steps.pkg_info.outputs.pkg_version }}" \
+            '.name = $name | .version = $version' package.json > temp_package.json && mv temp_package.json package.json
 
       - name: Check for Changes
         id: diff
