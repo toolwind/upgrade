@@ -53,12 +53,14 @@ You can run the tool using `npx @toolwind/upgrade [OPTIONS]`:
 
 ```bash
 # Basic usage with a single config file
-npx @toolwind/upgrade --config path/to/tailwind.config.js
+npx @toolwind/upgrade --config 'path/to/tailwind.config.js'
 
 # Basic usage with multiple config files (using glob)
+# ⚠️ IMPORTANT: Always quote glob patterns in your shell!
 npx @toolwind/upgrade --configs '**/tailwind.config.{js,ts,cjs}'
 
 # Override template file scanning locations (ignores config's `content` array)
+# ⚠️ IMPORTANT: Always quote glob patterns in your shell!
 npx @toolwind/upgrade --config <config_path> --source 'src/**/*.html' 'app/**/*.tsx'
 
 # Migrate a string of utility classes directly (outputs to console)
@@ -79,6 +81,12 @@ npx @toolwind/upgrade --config <config_path> --inline-source 'button.bg-blue-500
 | `--inline-source-extension` | `-x`  | `string`   | Provide the extension of the inline source file (e.g. "html", "pug")     |
 | `--force`                   | `-f`  | `boolean`  | Force the migration (skips git dirty check)                              |
 | `--help`                    | `-h`  | `boolean`  | Display usage information                                                |
+
+## ⚠️ Important: Review Changes
+
+While this tool aims to be accurate, automated code migration can sometimes produce unexpected results, especially in complex scenarios like JavaScript/TypeScript files where utility classes might be constructed dynamically or embedded within template literals, or where JS looks like Tailwind utility classes to the parser (e.g. `() => !hidden && result` → ❌ `() => hidden! && result`).
+
+**Always review the changes made by this tool carefully** before committing them. Verify that the migrated utilities function as expected in your application's context.
 
 ## Contributing
 
