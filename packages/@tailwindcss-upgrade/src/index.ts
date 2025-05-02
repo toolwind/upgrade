@@ -191,7 +191,9 @@ async function run() {
             { prefix: '↳ ' },
           )
         } else {
-          error(`Error resolving glob '${inputPatternOrPath}': ${e?.message ?? e}`, { prefix: '↳ ' })
+          error(`Error resolving glob '${inputPatternOrPath}': ${e?.message ?? e}`, {
+            prefix: '↳ ',
+          })
         }
       }
     } else {
@@ -201,7 +203,9 @@ async function run() {
         configPathsToProcess.add(absolutePath)
         // Log specific path only if not quiet
         if (!flags['--quiet']) {
-          info(`Resolved specific path: ${highlight(relative(absolutePath, base))}`, { prefix: '↳ ' })
+          info(`Resolved specific path: ${highlight(relative(absolutePath, base))}`, {
+            prefix: '↳ ',
+          })
         }
       } catch {
         // Always log errors
@@ -235,7 +239,9 @@ async function run() {
       }
     } catch (e: any) {
       // Always log errors
-      error(`Failed to load config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`, { prefix: '↳ ' })
+      error(`Failed to load config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`, {
+        prefix: '↳ ',
+      })
       // Only log full debug details if debug flag is also set
       if (flags['--debug']) {
         console.error(`[DEBUG] Full error details for ${relativeConfigPath}:`)
@@ -284,7 +290,9 @@ async function run() {
         )
         // Only log full debug details if debug flag is also set
         if (flags['--debug']) {
-          console.error(`[DEBUG] Full error details for inline migration with ${relativeConfigPath}:`)
+          console.error(
+            `[DEBUG] Full error details for inline migration with ${relativeConfigPath}:`,
+          )
           console.error(e)
         }
       }
@@ -294,7 +302,6 @@ async function run() {
       success('Inline source migration complete.')
     }
     process.exit(0) // Exit after processing all configs
-
   }
   // --- FILE MIGRATION --- (if not inline)
   else {
@@ -344,7 +351,9 @@ async function run() {
               { prefix: '↳ ' },
             )
           } else {
-            error(`Error scanning template source '${pattern}': ${e?.message ?? e}`, { prefix: '↳ ' })
+            error(`Error scanning template source '${pattern}': ${e?.message ?? e}`, {
+              prefix: '↳ ',
+            })
           }
         }
       }

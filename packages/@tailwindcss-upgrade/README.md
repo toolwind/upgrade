@@ -50,10 +50,10 @@ This tool excels in more complex setups and codebases where you'd need to update
 
 This tool excels in more complex scenarios where you'd need to update utility classes across various areas in your app based on one or more Tailwind configuration files, especially in:
 
-*   **Monorepos:** Easily migrate codebases with multiple projects, each having its own `tailwind.config.js`, by using glob patterns with the `--config` flag, enabling batch migrations.
-*   **Targeted migrations:** Focus *only* on utility class changes without altering configuration files or dependencies, allowing for more controlled upgrades.
-*   **CI/CD & scripting:** Integrate utility class migration into automated workflows.
-*   **Utility classes stored in databases:** I've seen it.
+- **Monorepos:** Easily migrate codebases with multiple projects, each having its own `tailwind.config.js`, by using glob patterns with the `--config` flag, enabling batch migrations.
+- **Targeted migrations:** Focus _only_ on utility class changes without altering configuration files or dependencies, allowing for more controlled upgrades.
+- **CI/CD & scripting:** Integrate utility class migration into automated workflows.
+- **Utility classes stored in databases:** I've seen it.
 
 ## Usage
 

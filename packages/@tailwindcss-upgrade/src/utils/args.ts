@@ -141,7 +141,11 @@ type ArgumentType = string | boolean | string[] | undefined
 // Try to convert the raw incoming `value` (which will be a string or a boolean,
 // this is coming from `mri`'s parse function'), to the correct type based on
 // the `type` of the argument.
-function convert<T extends keyof Types>(value: ArgumentType, type: T, inDebugMode: boolean): Types[T] {
+function convert<T extends keyof Types>(
+  value: ArgumentType,
+  type: T,
+  inDebugMode: boolean,
+): Types[T] {
   debugLog(inDebugMode, `convert called: value=`, JSON.stringify(value), `type=`, type)
 
   switch (type) {
