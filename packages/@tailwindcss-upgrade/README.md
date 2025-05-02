@@ -12,7 +12,6 @@
   <nobr>A custom Tailwind CSS v3 → v4 upgrade tool <wbr>focused <strong>only</strong> on migrating utility classes.</nobr>
 </p>
 
-
 <p align="center">
     <a href="https://github.com/toolwind/upgrade/actions"><img src="https://img.shields.io/github/actions/workflow/status/toolwind/upgrade/ci.yml?branch=next" alt="Build Status"></a>
     <a href="https://www.npmjs.com/package/@toolwind/upgrade"><img src="https://img.shields.io/npm/dt/@toolwind/upgrade.svg" alt="Total Downloads"></a>
@@ -72,7 +71,7 @@ npx @toolwind/upgrade --config <config_path> --inline-source 'button.bg-blue-500
 ## Options
 
 | Flag                        | Alias | Type       | Description                                                              |
-| :-------------------------- | :---- | :--------- | :-------------------------------------------------------------------     |
+| :-------------------------- | :---- | :--------- | :----------------------------------------------------------------------- |
 | `--config`                  | `-c`  | `string`   | Path to a single configuration file                                      |
 | `--configs`                 | `-C`  | `string[]` | Paths or globs for multiple configs (e.g. `tailwind.config.{js,ts,cjs}`) |
 | `--source`                  | `-s`  | `string[]` | Override template source patterns/globs (ignores config `content`)       |
