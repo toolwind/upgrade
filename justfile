@@ -57,6 +57,8 @@ test:
 # WARNING: Does not perform git checks or commits!
 bump-dev:
     #!/usr/bin/env bash
+    set -e # Exit immediately if a command exits with a non-zero status.
+
     echo "Bumping dev version in packages/@tailwindcss-upgrade/package.json..."
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     ROOT_PKG_FILE="package.json"
@@ -80,7 +82,7 @@ bump-dev:
     # --- Update Package package.json ---
     echo "Updating $PKG_FILE..."
     cp $PKG_FILE "$PKG_FILE.bak"
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE
+    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE || exit 1
     rm "$PKG_FILE.tmp"
     rm "$PKG_FILE.bak"
 
@@ -89,10 +91,15 @@ bump-dev:
     # Use jq to reliably extract current values (jq needs to be installed on the system)
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    # Check if jq succeeded and variables are not empty
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Error: Failed to extract current name or version from root package.json using jq."
+        exit 1
+    fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     # Use sed with # delimiter, targeting the extracted current values
-    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
-    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE || exit 1
     rm "$ROOT_PKG_FILE.tmp" # sed creates two .tmp files on macOS, remove both
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
@@ -106,6 +113,8 @@ bump-dev:
 # Bump the patch version (X.Y.Z -> X.Y.Z+1)
 bump-patch:
     #!/usr/bin/env bash
+    set -e # Exit immediately if a command exits with a non-zero status.
+
     echo "Bumping PATCH version in packages/@tailwindcss-upgrade/package.json..."
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     ROOT_PKG_FILE="package.json"
@@ -134,7 +143,7 @@ bump-patch:
     # --- Update Package package.json ---
     echo "Updating $PKG_FILE..."
     cp $PKG_FILE "$PKG_FILE.bak"
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION_FULL\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE
+    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION_FULL\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE || exit 1
     rm "$PKG_FILE.tmp"
     rm "$PKG_FILE.bak"
 
@@ -142,9 +151,13 @@ bump-patch:
     echo "Updating root $ROOT_PKG_FILE..."
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Error: Failed to extract current name or version from root package.json using jq."
+        exit 1
+    fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
-    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE || exit 1
     rm "$ROOT_PKG_FILE.tmp"
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
@@ -154,6 +167,8 @@ bump-patch:
 # Bump the minor version (X.Y.Z -> X.Y+1.0)
 bump-minor:
     #!/usr/bin/env bash
+    set -e # Exit immediately if a command exits with a non-zero status.
+
     echo "Bumping MINOR version in packages/@tailwindcss-upgrade/package.json..."
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     ROOT_PKG_FILE="package.json"
@@ -178,7 +193,7 @@ bump-minor:
     # --- Update Package package.json ---
     echo "Updating $PKG_FILE..."
     cp $PKG_FILE "$PKG_FILE.bak"
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION_FULL\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE
+    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION_FULL\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE || exit 1
     rm "$PKG_FILE.tmp"
     rm "$PKG_FILE.bak"
 
@@ -186,9 +201,13 @@ bump-minor:
     echo "Updating root $ROOT_PKG_FILE..."
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Error: Failed to extract current name or version from root package.json using jq."
+        exit 1
+    fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
-    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE || exit 1
     rm "$ROOT_PKG_FILE.tmp"
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
@@ -198,6 +217,8 @@ bump-minor:
 # Bump the major version (X.Y.Z -> X+1.0.0)
 bump-major:
     #!/usr/bin/env bash
+    set -e # Exit immediately if a command exits with a non-zero status.
+
     echo "Bumping MAJOR version in packages/@tailwindcss-upgrade/package.json..."
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     ROOT_PKG_FILE="package.json"
@@ -221,7 +242,7 @@ bump-major:
     # --- Update Package package.json ---
     echo "Updating $PKG_FILE..."
     cp $PKG_FILE "$PKG_FILE.bak"
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION_FULL\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE
+    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_VERSION_FULL\"/\"version\": \"$NEW_VERSION\"/" $PKG_FILE || exit 1
     rm "$PKG_FILE.tmp"
     rm "$PKG_FILE.bak"
 
@@ -229,9 +250,13 @@ bump-major:
     echo "Updating root $ROOT_PKG_FILE..."
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Error: Failed to extract current name or version from root package.json using jq."
+        exit 1
+    fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
-    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE || exit 1
     rm "$ROOT_PKG_FILE.tmp"
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
