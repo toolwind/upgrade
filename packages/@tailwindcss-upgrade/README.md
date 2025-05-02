@@ -7,7 +7,7 @@
     </picture>
   </a>
   <br />
-  ~ <a href="https://tailwindcss.com" target="_blank"><small>@toolwind/upgrade</small></a> ~
+  <small>~ @toolwind/upgrade ~</small>
 </p>
 
 <p align="center">
@@ -38,8 +38,8 @@ Unlike the original Tailwind upgrade tool, this version **only migrates utility 
       <li>📦&nbsp; <strong>No Package Updates</strong><br/><small>Dependencies like <code>tailwindcss</code>, <code>@tailwindcss/postcss</code>, and plugins like <code>autoprefixer</code> are left for you to manage as you see fit. See the official <a href="https://tailwindcss.com/docs/upgrade-guide" target="_blank">upgrade guide</a>.</small></li><br>
     </ul>
   </li>
-  <li>
-    <strong>🔄 ⚡️ 🔀 🎛️ 🎚️ 🔁 🔃 🔂 🔁 ↔️ Flexible Input</strong><ul><br>
+  <li>🧩&nbsp;
+    <strong> Flexible Input</strong><ul><br>
       <li>🧍&nbsp; <strong>Single Config</strong><br/><small>Use <code>--config</code> (<code>-c</code>) to specify a single Tailwind configuration file to use for migration.</small></li><br>
       <li>🧑‍🤝‍🧑&nbsp; <strong>Multiple Configs</strong><br/><small>Use <code>--configs</code> (<code>-C</code>) to specify multiple configuration files or glob patterns for batch migrations.</small></li><br>
       <li>🔍&nbsp; <strong>Custom Source Patterns</strong><br/><small>Use the <code>--source</code> (<code>-s</code>) flag to override the <code>content</code> array and specify exact file paths or glob patterns to scan for utilities.</small></li><br>
