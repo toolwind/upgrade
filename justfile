@@ -261,4 +261,54 @@ bump-major:
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
 
-    echo "Versions bumped successfully!" 
+    echo "Versions bumped successfully!"
+
+# Set the version to its stable X.Y.Z base in both package and root package.json
+# (e.g., 4.1.5-dev.21 -> 4.1.5).
+# WARNING: Does not perform git checks or commits!
+set-stable:
+    #!/usr/bin/env bash
+    set -e # Exit immediately if a command exits with a non-zero status.
+
+    echo "Setting stable version in package.json files..."
+    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    ROOT_PKG_FILE="package.json"
+    PKG_NAME="@toolwind/upgrade"
+    ROOT_PKG_NAME="${PKG_NAME}-root"
+
+    # Get the full current package version first for replacement later
+    CURRENT_VERSION_FULL=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    # Extract the base X.Y.Z part, ignoring pre-release tags like -dev.N
+    NEW_STABLE_VERSION=$(echo "$CURRENT_VERSION_FULL" | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+
+    echo "Current full package version: $CURRENT_VERSION_FULL"
+    # Check if the extracted base version is valid
+    if ! echo "$NEW_STABLE_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
+        echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base to set as stable."; \
+        exit 1; \
+    fi
+    echo "Setting stable version to:  $NEW_STABLE_VERSION"
+
+    # --- Update Package package.json ---
+    echo "Updating $PKG_FILE..."
+    cp $PKG_FILE "$PKG_FILE.bak"
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_VERSION_FULL\"#\"version\": \"$NEW_STABLE_VERSION\"#" $PKG_FILE || exit 1
+    rm "$PKG_FILE.tmp"
+    rm "$PKG_FILE.bak"
+
+    # --- Update Root package.json ---
+    echo "Updating root $ROOT_PKG_FILE..."
+    CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
+    CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Error: Failed to extract current name or version from root package.json using jq."
+        exit 1
+    fi
+    cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_STABLE_VERSION\"#" $ROOT_PKG_FILE || exit 1
+    rm "$ROOT_PKG_FILE.tmp" # sed creates two .tmp files on macOS, remove both
+    rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
+    rm "$ROOT_PKG_FILE.bak"
+
+    echo "Versions set to stable successfully!" 
