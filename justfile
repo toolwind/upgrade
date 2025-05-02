@@ -36,7 +36,14 @@ clean:
 publish-dev: build
     @echo "Formatting @toolwind/upgrade package..."
     pnpm prettier --write packages/@tailwindcss-upgrade
-    @echo "Publishing DEV version of @toolwind/upgrade..."
+    @# Verify version is actually a dev version
+    @PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    @CURRENT_VERSION=$(grep '"version":' $PKG_FILE | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    @if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
+        echo "Error: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish-stable' for stable releases."; \
+        exit 1; \
+    fi
+    @echo "Publishing DEV version ($CURRENT_VERSION) of @toolwind/upgrade..."
     pnpm publish --filter @toolwind/upgrade --tag dev --no-git-checks
 
 # Publish a stable release version (requires build first)
@@ -44,7 +51,14 @@ publish-dev: build
 publish-stable: build
     @echo "Formatting @toolwind/upgrade package..."
     pnpm prettier --write packages/@tailwindcss-upgrade
-    @echo "Publishing STABLE version of @toolwind/upgrade..."
+    @# Verify version is actually a stable version
+    @PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    @CURRENT_VERSION=$(grep '"version":' $PKG_FILE | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    @if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
+        echo "Error: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish-dev'."; \
+        exit 1; \
+    fi
+    @echo "Publishing STABLE version ($CURRENT_VERSION) of @toolwind/upgrade..."
     pnpm publish --filter @toolwind/upgrade --no-git-checks
 
 # Placeholder for tests if added later
