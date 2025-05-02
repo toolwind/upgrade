@@ -36,8 +36,12 @@ const options = {
     description: 'Provide the extension of the inline source file (e.g. "html")',
     alias: '-x',
   },
+  '--debug': {
+    type: 'boolean',
+    description: 'Enable debug mode',
+  },
 } satisfies Arg
-const flags = args(options)
+const flags = args(options, ['--debug'])
 
 if (flags['--help']) {
   help({
@@ -61,52 +65,24 @@ async function run() {
   // --- DETECT REPO ROOT USING GIT ---
   try {
     repoRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8', stdio: 'pipe' }).trim()
-    info(`Detected repository root: ${repoRoot}`)
+    // Don't log here yet
   } catch (gitError) {
-    info(
-      `Warning: Could not determine Git repository root (maybe not a git repo or git is not installed).`,
-    )
-    info(`Using current directory (${initialCwd}) as base for resolving paths and globs.`)
+    // Don't log here yet
     repoRoot = initialCwd
   }
   const base = repoRoot
   // --- END DETECT REPO ROOT ---
 
-  eprintln(header())
-  eprintln()
-
-  // --- GIT DIRTY CHECK ---
-  if (!flags['--force']) {
-    let repoIsDirty = false
-    try {
-      repoIsDirty = isRepoDirty() // Pass base if isRepoDirty requires it
-    } catch (dirtyCheckError) {
-      info(`Warning: Could not perform Git dirty check: ${dirtyCheckError}`)
-    }
-    if (repoIsDirty) {
-      error('Git directory is not clean. Please stash or commit your changes before migrating.')
-      info(`You may use the ${highlight('--force')} flag to silence this warning...`)
-      process.exit(1)
-    }
-  }
-  // --- END GIT DIRTY CHECK ---
-
-  // --- VALIDATION FOR CONFIG FLAGS ---
-  // Check against null, the actual default value when flag is not provided
+  // --- Basic Flag Validation ---
   const hasSingleConfig = flags['--config'] !== null
-  // Check against null first before checking length
   const hasMultipleConfigs = flags['--configs'] !== null && flags['--configs'].length > 0
   const hasSourceFlag = flags['--source'] !== null && flags['--source'].length > 0
   const hasInlineSourceFlag = flags['--inline-source'] !== null
 
   if (hasSingleConfig && hasMultipleConfigs) {
-    error(
-      'Please use either --config (for a single file) or --configs (for multiple files), not both.',
-    )
+    error('Please use either --config or --configs, not both.')
     process.exit(1)
   }
-
-  // Check if neither config flag was provided
   if (!hasSingleConfig && !hasMultipleConfigs) {
     error('Please provide configuration file path(s) using either --config or --configs.')
     info(`Examples:`)
@@ -114,37 +90,30 @@ async function run() {
     info(`  npx @toolwind/upgrade --configs '**/tailwind.config.{js,ts,cjs}'`)
     process.exit(1)
   }
-
-  // --- NEW VALIDATION for --source and --inline-source ---
   if (hasSourceFlag && hasInlineSourceFlag) {
-    error(
-      'Please use either --source (to scan files) or --inline-source (to migrate a string), not both.',
-    )
+    error('Please use either --source or --inline-source, not both.')
     process.exit(1)
   }
-
   if (hasInlineSourceFlag && !hasSingleConfig && !hasMultipleConfigs) {
-    error(
-      'The --inline-source flag requires a configuration file specified with --config or --configs.',
-    )
+    error('The --inline-source flag requires a configuration file.')
     process.exit(1)
   }
-  // --- END NEW VALIDATION ---
+  // --- End Basic Flag Validation ---
 
-  // --- DETERMINE CONFIG INPUTS ---
+  // --- DETERMINE/RESOLVE/LOAD CONFIGS ---
   let configInputs: string[] = []
   if (hasSingleConfig) {
     configInputs.push(flags['--config']!)
   } else {
     configInputs = flags['--configs']!
   }
-  // --- END DETERMINING INPUTS ---
 
-  // --- RESOLVE CONFIG PATHS FROM REPO ROOT (base) ---
   let configPathsToProcess = new Set<string>()
-  info('Resolving configuration file paths/globs relative to base directory…')
+  let infoLogsForConfigs: string[] = [] // Collect logs to show later if needed
+
+  // Don't log resolving start yet
   for (let inputPatternOrPath of configInputs) {
-    const isGlob = /[*?{}[\]]/.test(inputPatternOrPath) || inputPatternOrPath.includes('**')
+    const isGlob = /[*?{}[\\\]]/.test(inputPatternOrPath) || inputPatternOrPath.includes('**')
     if (isGlob) {
       try {
         const foundFiles = await globby(inputPatternOrPath, {
@@ -157,29 +126,27 @@ async function run() {
             '**/node_modules/**',
             '**/dist/**',
             '**/.*/**',
-            '**/dev-env/root/reporoot/**',
+            '**/dev-env/root/reporoot/**', // Keep targeted ignore for config search
             '**/common/temp/pnpm-store/**',
           ],
         })
         if (foundFiles.length > 0) {
           foundFiles.forEach((file) => configPathsToProcess.add(file))
-          info(
+          infoLogsForConfigs.push(
             `Glob '${inputPatternOrPath}' resolved to: ${foundFiles.map((f) => highlight(relative(f, base))).join(', ')}`,
-            { prefix: '↳ ' },
           )
         } else {
-          info(`Glob '${inputPatternOrPath}' did not match any files.`, { prefix: '↳ ' })
+          infoLogsForConfigs.push(`Glob '${inputPatternOrPath}' did not match any files.`)
         }
       } catch (e: any) {
+        // Still log errors immediately
         if (e?.code === 'ENAMETOOLONG') {
           error(
             `Error resolving glob '${inputPatternOrPath}': Path became too long. Check ignore patterns. Error: ${e?.message ?? e}`,
             { prefix: '↳ ' },
           )
         } else {
-          error(`Error resolving glob '${inputPatternOrPath}': ${e?.message ?? e}`, {
-            prefix: '↳ ',
-          })
+          error(`Error resolving glob '${inputPatternOrPath}': ${e?.message ?? e}`, { prefix: '↳ ' })
         }
       }
     } else {
@@ -187,7 +154,9 @@ async function run() {
       try {
         await fs.access(absolutePath)
         configPathsToProcess.add(absolutePath)
-        info(`Resolved specific path: ${highlight(relative(absolutePath, base))}`, { prefix: '↳ ' })
+        infoLogsForConfigs.push(
+          `Resolved specific path: ${highlight(relative(absolutePath, base))}`,
+        )
       } catch {
         error(
           `Specified configuration file not found: ${highlight(inputPatternOrPath)} (resolved relative to ${base})`,
@@ -196,48 +165,36 @@ async function run() {
       }
     }
   }
-  // --- END RESOLVING PATHS ---
 
   if (configPathsToProcess.size === 0) {
     error('No configuration files found or resolved from the provided inputs. Aborting.')
     process.exit(1)
   }
 
-  // --- THIS SECTION IS INTENTIONALLY EMPTY ---
-  // We ensure that NO logic related to finding/loading/parsing/linking CSS files
-  // runs before we explicitly load the configurations below.
-  // Any code that was here previously (like searching for *.css with globby,
-  // using Stylesheet.load, or linkConfigsToStylesheets) is removed/bypassed.
-  // --- END INTENTIONALLY EMPTY SECTION ---
-
-  // --- LOAD CONFIGS DIRECTLY ---
   let explicitConfigs: Awaited<ReturnType<typeof prepareConfig>>[] = []
-  info('Loading configuration files…')
+  let configLoadSuccessLogs: string[] = []
+  let configLoadErrorLogs: string[] = []
+
+  // Don't log loading start yet
   for (let absoluteConfigPath of configPathsToProcess) {
-    const relativeConfigPath = relative(absoluteConfigPath, base) // Get relative path for logging
+    const relativeConfigPath = relative(absoluteConfigPath, base)
     try {
-      // Pass repoRoot (base) to prepareConfig
       let config = await prepareConfig(absoluteConfigPath, { base })
       explicitConfigs.push(config)
-      success(`Loaded config: ${highlight(relativeConfigPath)}`, { prefix: '↳ ' })
+      configLoadSuccessLogs.push(`Loaded config: ${highlight(relativeConfigPath)}`)
     } catch (e: any) {
-      // --- MODIFIED ERROR LOGGING ---
-      error(`Failed to load config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`, {
-        prefix: '↳ ',
-      })
-      // Add more detail to the console for debugging
+      error(`Failed to load config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`, { prefix: '↳ ' })
       console.error(`[DEBUG] Full error details for ${relativeConfigPath}:`)
       console.error(e)
-      // Continue processing other files, but note the failure
-      // --- END MODIFIED ERROR LOGGING ---
+      // Don't push to success logs, maybe collect error logs if needed elsewhere
     }
   }
-  // Check if *any* configs loaded successfully before proceeding
+
   if (explicitConfigs.length === 0) {
-    error('No valid configuration files could be loaded successfully. Aborting.') // Adjusted message
+    error('No valid configuration files could be loaded successfully. Aborting.')
     process.exit(1)
   }
-  // --- END LOAD CONFIGS DIRECTLY ---
+  // --- END CONFIG LOADING ---
 
   // --- TEMPLATE MIGRATION ---
   if (explicitConfigs.length > 0) {
@@ -245,7 +202,7 @@ async function run() {
     if (flags['--inline-source']) {
       const inlineSource = flags['--inline-source'] as string
 
-      // --- SINGLE CONFIG OPTIMIZED PATH ---
+      // --- SINGLE CONFIG OPTIMIZED PATH --- >> Check **loaded** config count << ---
       if (explicitConfigs.length === 1) {
         const config = explicitConfigs[0]
         try {
@@ -255,8 +212,8 @@ async function run() {
             inlineSource,
             flags['--inline-source-extension'],
           )
-          // Output only the raw string to stdout and exit
-          process.stdout.write(migratedString)
+          // Output only the raw string (plus newline) to stdout and exit
+          console.log(migratedString)
           process.exit(0)
         } catch (e: any) {
           // Output only the error message to stderr and exit
@@ -268,69 +225,79 @@ async function run() {
 
       // --- MULTIPLE CONFIGS PATH (Existing Logic) ---
       else {
-        info('Migrating provided inline source string...') // Keep info for multi-config
+        info('Migrating provided inline source string...')
         for (let config of explicitConfigs) {
           const relativeConfigPath = relative(config.configFilePath, base)
           try {
-            // We assume migrateString exists and returns the migrated string
             const migratedString = await migrateString(
               config.designSystem,
               config.userConfig,
               inlineSource,
               flags['--inline-source-extension'],
             )
-
-            // Print the result clearly associated with its config
             eprintln() // Add spacing
-            info(`Result using config ${highlight(relativeConfigPath)}:`) // Keep info for multi-config
-            console.log(migratedString) // Print the raw migrated string to stdout
+            info(`Result using config ${highlight(relativeConfigPath)}:`)
+            console.log(migratedString)
             eprintln() // Add spacing
           } catch (e: any) {
             error(
               `Failed to migrate inline source using config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`,
               { prefix: '↳ ' },
             )
-            // Keep debug details for multi-config case
             console.error(
               `[DEBUG] Full error details for inline migration with ${relativeConfigPath}:`,
             )
             console.error(e)
           }
         }
-        // Exit after printing all inline results for multiple configs
-        success('Inline source migration complete.') // Keep success for multi-config
-        process.exit(0)
+        success('Inline source migration complete.')
+        process.exit(0) // Exit after multi-inline processing
       }
       // --- END MULTIPLE CONFIGS PATH ---
     } else {
+      // --- FILE MIGRATION --- (if not inline)
       info('Migrating templates based on loaded configurations and source patterns…')
       for (let config of explicitConfigs) {
         let templatesForThisConfig = new Set<string>()
         info(`Finding templates for config: ${highlight(relative(config.configFilePath, base))}`)
 
-        // Determine source patterns: Use --source flag if provided, otherwise use config.sources
         const sourcePatternsInput =
           flags['--source'] ?? config.sources.flatMap((entry) => hoistStaticGlobParts(entry))
 
         for (let globEntry of sourcePatternsInput) {
-          // Adjust globEntry type check if necessary, assuming string[] from flag or {pattern: string, base: string}[] from config
           let pattern: string
           let cwd: string
           if (typeof globEntry === 'string') {
-            pattern = globEntry // Pattern from --source flag
-            cwd = base // Assume patterns from flag are relative to the base (repo root)
+            pattern = globEntry
+            cwd = base
           } else {
-            pattern = globEntry.pattern // Pattern from sourcePatternsInput
+            pattern = globEntry.pattern
             cwd = globEntry.base
           }
 
-          let files = await globby([pattern], {
-            absolute: true,
-            gitignore: true,
-            cwd: cwd,
-            ignore: ['**/node_modules/**', '**/dist/**', '**/.*/**'],
-          })
-          files.forEach((file) => templatesForThisConfig.add(file))
+          try {
+            let files = await globby([pattern], {
+              absolute: true,
+              gitignore: true,
+              cwd: cwd,
+              ignore: [
+                '**/node_modules/**',
+                '**/dist/**',
+                '**/.*/**',
+                '**/common/temp/pnpm-store/**', // No specific ignores here, rely on .gitignore
+              ],
+            })
+            files.forEach((file) => templatesForThisConfig.add(file))
+          } catch (e: any) {
+            if (e?.code === 'ENAMETOOLONG') {
+              error(
+                `Error scanning template source '${pattern}': Path became too long. Consider adding ignores to your .gitignore. Error: ${e?.message ?? e}`,
+                { prefix: '↳ ' },
+              )
+            } else {
+              error(`Error scanning template source '${pattern}': ${e?.message ?? e}`, { prefix: '↳ ' })
+            }
+          }
         }
 
         let filesToMigrate = Array.from(templatesForThisConfig)
@@ -376,27 +343,9 @@ async function run() {
   }
   // --- END TEMPLATE MIGRATION ---
 
-  // --- COMMENTED OUT OTHER MIGRATIONS ---
-  /*
-  { // PostCSS config migration - Skip
-     // await migratePostCSSConfig(base)
-  }
-  { // Prettier plugin migration - Skip
-     // await migratePrettierPlugin(base)
-  }
-  { // Tailwind CSS dependency upgrade - Skip
-     // try { await pkg(base).add(['tailwindcss@latest']) } catch {}
-  }
-  { // Cleanup - Skip
-     // await Promise.allSettled(cleanup.map((fn) => fn())) // cleanup array is also removed
-  }
-  */
-  // --- END COMMENTED OUT OTHER MIGRATIONS ---
-
   // --- FINAL STATUS CHECK (only run if NOT using --inline-source) ---
   if (!flags['--inline-source']) {
     if (isRepoDirty()) {
-      // Pass base if needed
       success('Migration complete. Verify the changes and commit them to your repository.')
     } else {
       success('Migration complete. No changes were detected in your repository.')
