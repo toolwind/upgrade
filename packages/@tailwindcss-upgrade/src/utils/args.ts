@@ -78,7 +78,7 @@ export type Result<T extends Arg> = {
 
 export function args<const T extends Arg>(options: T, argv = process.argv.slice(2)): Result<T> {
   let parsed = parse(argv)
-  let inDebugMode = parsed.debug
+  let inDebugMode = parsed.debug ?? false
   debugLog(inDebugMode, 'Raw parsed args (from mri):', JSON.stringify(parsed))
 
   let result: { _: string[]; [key: string]: unknown } = {

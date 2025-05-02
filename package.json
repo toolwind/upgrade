@@ -1,7 +1,7 @@
 {
   "name": "@toolwind/upgrade-root",
   "private": true,
-  "version": "4.1.5-dev.11",
+  "version": "4.1.5-dev.13",
   "description": "Custom Tailwind CSS v3 -> v4 upgrade tool",
   "prettier": {
     "semi": false,

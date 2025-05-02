@@ -37,15 +37,23 @@ Unlike the original Tailwind upgrade tool, this version **only migrates utility 
   </li>
   <li>🧩&nbsp;
     <strong> Flexible Input</strong><ul><br>
-      <li>🧍&nbsp; <strong>Single Config</strong><br/><small>Use <code>--config</code> (<code>-c</code>) to specify a single Tailwind configuration file to use for migration.</small></li><br>
-      <li>🧑‍🤝‍🧑&nbsp; <strong>Multiple Configs</strong><br/><small>Use <code>--configs</code> (<code>-C</code>) to specify multiple configuration files or glob patterns for batch migrations.</small></li><br>
+      <li>⚙️&nbsp; <strong>Config Files</strong><br/><small>Use <code>--config</code> (<code>-c</code>) to specify paths or glob patterns to match one or more configuration files.</small></li><br>
       <li>🔍&nbsp; <strong>Custom Source Patterns</strong><br/><small>Use the <code>--source</code> (<code>-s</code>) flag to override the <code>content</code> array and specify exact file paths or glob patterns to scan for utilities.</small></li><br>
       <li>💻&nbsp; <strong>Direct String Migration</strong><br/><small>Use the <code>--inline-source</code> (<code>-i</code>) flag to migrate a string containing utility classes directly from the command line without scanning files.</small></li><br>
     </ul>
   </li>
 </ul>
 
-</small>
+## When to Use This Tool
+
+This tool excels in more complex setups and codebases where you'd need to update utility classes across project directories based on one or more Tailwind configuration files, especially in: This could be monorepos, multi-X applications, even databases (we've seen it).
+
+This tool excels in more complex scenarios where you'd need to update utility classes across various areas in your app based on one or more Tailwind configuration files, especially in:
+
+*   **Monorepos:** Easily migrate codebases with multiple projects, each having its own `tailwind.config.js`, by using glob patterns with the `--config` flag, enabling batch migrations.
+*   **Targeted migrations:** Focus *only* on utility class changes without altering configuration files or dependencies, allowing for more controlled upgrades.
+*   **CI/CD & scripting:** Integrate utility class migration into automated workflows.
+*   **Utility classes stored in databases:** I've seen it.
 
 ## Usage
 
@@ -57,7 +65,7 @@ npx @toolwind/upgrade --config 'path/to/tailwind.config.js'
 
 # Basic usage with multiple config files (using glob)
 # ⚠️ IMPORTANT: Always quote glob patterns in your shell!
-npx @toolwind/upgrade --configs '**/tailwind.config.{js,ts,cjs}'
+npx @toolwind/upgrade --config '**/tailwind.config.{js,ts,cjs}'
 
 # Override template file scanning locations (ignores config's `content` array)
 # ⚠️ IMPORTANT: Always quote glob patterns in your shell!
@@ -72,15 +80,17 @@ npx @toolwind/upgrade --config <config_path> --inline-source 'button.bg-blue-500
 
 ## Options
 
-| Flag                        | Alias | Type       | Description                                                              |
-| :-------------------------- | :---- | :--------- | :----------------------------------------------------------------------- |
-| `--config`                  | `-c`  | `string`   | Path to a single configuration file                                      |
-| `--configs`                 | `-C`  | `string[]` | Paths or globs for multiple configs (e.g. `tailwind.config.{js,ts,cjs}`) |
-| `--source`                  | `-s`  | `string[]` | Override template source patterns/globs (ignores config `content`)       |
-| `--inline-source`           | `-i`  | `string`   | Provide utility classes as a string for direct migration (no files)      |
-| `--inline-source-extension` | `-x`  | `string`   | Provide the extension of the inline source file (e.g. "html", "pug")     |
-| `--force`                   | `-f`  | `boolean`  | Force the migration (skips git dirty check)                              |
-| `--help`                    | `-h`  | `boolean`  | Display usage information                                                |
+| Flag                 | Alias | Type       | Description                                                              |
+| :------------------- | :---- | :--------- | :----------------------------------------------------------------------- |
+| `--config`           | `-c`  | `string[]` | Paths or globs for configuration files                                   |
+| `--configs`          | `-C`  | `string[]` | Paths or globs for multiple configs (e.g. `tailwind.config.{js,ts,cjs}`) |
+| `--source`           | `-s`  | `string[]` | Override template source patterns/globs (ignores config `content`)       |
+| `--inline-source`    | `-i`  | `string`   | Provide utility classes as a string for direct migration (no files)      |
+| `--inline-extension` | `-x`  | `string`   | Provide the extension of the inline source file (e.g. "html", "pug")     |
+| `--force`            | `-f`  | `boolean`  | Force the migration (skips git dirty check)                              |
+| `--quiet`            | `-q`  | `boolean`  | Suppress all informational logs; only output results or errors.          |
+| `--debug`            |       | `boolean`  | Enable debug mode logging for argument parsing                           |
+| `--help`             | `-h`  | `boolean`  | Display usage information                                                |
 
 ## ⚠️ Important: Review Changes
 
