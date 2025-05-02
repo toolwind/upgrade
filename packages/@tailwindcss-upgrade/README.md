@@ -85,13 +85,13 @@ npx @toolwind/upgrade --config <config_path> --inline-source 'button.bg-blue-500
 | `--configs`          | `-C`  | `string[]` | Paths or globs for multiple configs (e.g. `tailwind.config.{js,ts,cjs}`) |
 | `--source`           | `-s`  | `string[]` | Override template source patterns/globs (ignores config `content`)       |
 | `--inline-source`    | `-i`  | `string`   | Provide utility classes as a string for direct migration (no files)      |
-| `--inline-extension` | `-x`  | `string`   | Provide the extension of the inline source file (e.g. "html", "pug")     |
+| `--inline-extension` | `-x`  | `string`   | Provide the extension of the inline source (e.g. "html", "pug")          |
 | `--force`            | `-f`  | `boolean`  | Force the migration (skips git dirty check)                              |
 | `--quiet`            | `-q`  | `boolean`  | Suppress all informational logs; only output results or errors.          |
 | `--debug`            |       | `boolean`  | Enable debug mode logging for argument parsing                           |
 | `--help`             | `-h`  | `boolean`  | Display usage information                                                |
 
-## ⚠️ Important: Review Changes
+## ⚠️&nbsp; Important: Review Changes
 
 While this tool aims to be accurate, automated code migration can sometimes produce unexpected results, especially in complex scenarios like JavaScript/TypeScript files where utility classes might be constructed dynamically or embedded within template literals, or where JS looks like Tailwind utility classes to the parser (e.g. `() => !hidden && result` → ❌ `() => hidden! && result`).
 

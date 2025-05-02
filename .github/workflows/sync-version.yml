@@ -1,0 +1,50 @@
+name: Sync Root Package Version
+
+on:
+  push:
+    branches:
+      - '@toolwind/main' # Trigger on pushes to the main branch
+    paths:
+      - 'packages/@tailwindcss-upgrade/package.json' # Only run if the package file changes
+
+permissions:
+  contents: write # Need write permission to push commits
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: '@toolwind/main'
+
+      - name: Extract Package Info
+        id: pkg_info
+        run: |
+          PKG_NAME=$(jq -r '.name' packages/@tailwindcss-upgrade/package.json)
+          PKG_VERSION=$(jq -r '.version' packages/@tailwindcss-upgrade/package.json)
+          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
+          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Root package.json
+        run: |
+          jq --arg name "${{ steps.pkg_info.outputs.pkg_name }}" --arg version "${{ steps.pkg_info.outputs.pkg_version }}" \
+          '.name = $name | .version = $version' package.json > temp_package.json && mv temp_package.json package.json
+
+      - name: Check for Changes
+        id: diff
+        run: git diff --quiet package.json || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and Push Changes
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add package.json
+          git commit -m "chore: Sync root package name and version [skip ci]"
+          git push origin '@toolwind/main' 
