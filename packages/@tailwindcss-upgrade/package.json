@@ -9,7 +9,7 @@
     "directory": "packages/@tailwindcss-cli"
   },
   "bugs": "https://github.com/toolwind/upgrade/issues",
-  "homepage": "https://tailwindcss.com",
+  "homepage": "https://github.com/toolwind/upgrade",
   "scripts": {
     "lint": "tsc --noEmit",
     "build": "tsup-node",
