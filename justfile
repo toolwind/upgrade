@@ -41,24 +41,34 @@ publish level:
 
     # Validate argument
     if [[ "{{level}}" != "dev" && "{{level}}" != "stable" ]]; then \
-        echo "Error: Invalid argument '{{level}}'. Use 'dev' or 'stable'."; \
+        # Use direct echo here, as we want the main recipe to fail loudly if args are wrong
+        echo -e "\033[0;31mError: Invalid argument '{{level}}'. Use 'dev' or 'stable'.\033[0m"; \
         exit 1; \
     fi
 
-    # Run the appropriate check first. It will exit if invalid.
+    # Run the appropriate check first, capturing the exit code without exiting the main recipe immediately.
+    CHECK_RECIPE=""
+    PUBLISH_RECIPE=""
     if [[ "{{level}}" == "dev" ]]; then \
-        just _check-version-is-dev
+        CHECK_RECIPE="_check-version-is-dev"
+        PUBLISH_RECIPE="_publish-dev-actual"
     else \
-        just _check-version-is-stable
+        CHECK_RECIPE="_check-version-is-stable"
+        PUBLISH_RECIPE="_publish-stable-actual"
     fi
 
-    # If the check passed, proceed with the actual build, format, and publish
-    if [[ "{{level}}" == "dev" ]]; then \
-        echo "Check passed, proceeding with dev publish steps..."
-        just _publish-dev-actual
+    # Run the check but allow it to fail (|| true)
+    just $CHECK_RECIPE || CHECK_FAILED=$?
+
+    # Check the exit code manually
+    if [[ "${CHECK_FAILED:-0}" -ne 0 ]]; then
+        # The check recipe already printed the specific error in red
+        # Exit the main publish recipe without further messages from `just`
+        exit 1
     else \
-        echo "Check passed, proceeding with stable publish steps..."
-        just _publish-stable-actual
+        # Check passed, proceed with the actual publish steps
+        echo "Check passed, proceeding with {{level}} publish steps..."
+        just $PUBLISH_RECIPE
     fi
 
 # Placeholder for tests if added later
@@ -418,7 +428,7 @@ _check-version-is-dev:
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
     if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
-        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish-stable' for stable releases.\033[0m"; \
+        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish stable' for stable releases.\033[0m"; \
         exit 1; \
     else \
         echo "Version check passed: $CURRENT_VERSION is a dev version."; \
@@ -431,7 +441,7 @@ _check-version-is-stable:
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
     if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
-        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish-dev'.\033[0m"; \
+        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish dev'.\033[0m"; \
         exit 1; \
     else \
         echo "Version check passed: $CURRENT_VERSION is a stable version."; \
