@@ -13,7 +13,6 @@
 </p>
 
 <p align="center">
-    <a href="https://github.com/toolwind/upgrade/actions"><img src="https://img.shields.io/github/actions/workflow/status/toolwind/upgrade/ci.yml?branch=next" alt="Build Status"></a>
     <a href="https://www.npmjs.com/package/@toolwind/upgrade"><img src="https://img.shields.io/npm/dt/@toolwind/upgrade.svg" alt="Total Downloads"></a>
     <a href="https://github.com/toolwind/upgrade/releases"><img src="https://img.shields.io/npm/v/@toolwind/upgrade.svg" alt="Latest Release"></a>
     <a href="https://github.com/toolwind/upgrade/blob/master/LICENSE"><img src="https://img.shields.io/npm/l/@toolwind/upgrade.svg" alt="License"></a>
