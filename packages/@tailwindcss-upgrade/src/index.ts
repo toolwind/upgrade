@@ -21,7 +21,6 @@ const options = {
   },
   '--help': { type: 'boolean', description: 'Display usage information', alias: '-h' },
   '--force': { type: 'boolean', description: 'Force the migration', alias: '-f' },
-  '--version': { type: 'boolean', description: 'Display the version number', alias: '-v' },
   '--source': {
     type: 'string[]',
     description: 'Override template source patterns/globs',
@@ -48,6 +47,7 @@ if (flags['--help']) {
       'npx @toolwind/upgrade --config <path> --source <path|glob>...',
       'npx @toolwind/upgrade --configs <path|glob>... --source <path|glob>...',
       'npx @toolwind/upgrade --config <path> --inline-source "<string>"',
+      'npx @toolwind/upgrade --config <path> --inline-source "<string>" --inline-source-extension pug',
     ],
     options,
   })
