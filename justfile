@@ -403,10 +403,11 @@ start-dev level='patch':
 
 # Check if the current package version is a dev version (-dev.N)
 _check-version-is-dev:
-    @echo "Checking if package version is a dev version..."
-    @PKG_FILE="packages/@tailwindcss-upgrade/package.json"
-    @CURRENT_VERSION=$(grep '"version":' $PKG_FILE | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    @if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
+    #!/usr/bin/env bash
+    echo "Checking if package version is a dev version..."
+    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
         echo "Error: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish-stable' for stable releases."; \
         exit 1; \
     else \
@@ -415,10 +416,11 @@ _check-version-is-dev:
 
 # Check if the current package version is stable (no pre-release tag)
 _check-version-is-stable:
-    @echo "Checking if package version is a stable version..."
-    @PKG_FILE="packages/@tailwindcss-upgrade/package.json"
-    @CURRENT_VERSION=$(grep '"version":' $PKG_FILE | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    @if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
+    #!/usr/bin/env bash
+    echo "Checking if package version is a stable version..."
+    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
         echo "Error: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish-dev'."; \
         exit 1; \
     else \
@@ -427,16 +429,18 @@ _check-version-is-stable:
 
 # Internal recipe to format and publish dev (depends on build)
 _publish-dev-actual: build
-    @echo "Formatting @toolwind/upgrade package (for dev publish)..."
+    #!/usr/bin/env bash
+    echo "Formatting @toolwind/upgrade package (for dev publish)..."
     pnpm prettier --write packages/@tailwindcss-upgrade
-    @CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
-    @echo "Publishing DEV version ($CURRENT_VERSION) of @toolwind/upgrade..."
+    CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
+    echo "Publishing DEV version ($CURRENT_VERSION) of @toolwind/upgrade..."
     pnpm publish --filter @toolwind/upgrade --tag dev --no-git-checks
 
 # Internal recipe to format and publish stable (depends on build)
 _publish-stable-actual: build
-    @echo "Formatting @toolwind/upgrade package (for stable publish)..."
+    #!/usr/bin/env bash
+    echo "Formatting @toolwind/upgrade package (for stable publish)..."
     pnpm prettier --write packages/@tailwindcss-upgrade
-    @CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
-    @echo "Publishing STABLE version ($CURRENT_VERSION) of @toolwind/upgrade..."
+    CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
+    echo "Publishing STABLE version ($CURRENT_VERSION) of @toolwind/upgrade..."
     pnpm publish --filter @toolwind/upgrade --no-git-checks 
