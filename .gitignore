@@ -8,3 +8,7 @@ blob-report/
 playwright/.cache/
 target/
 .debug/
+
+# Files automatically synced by GitHub Actions
+/README.md
+/package.json
