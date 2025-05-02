@@ -82,13 +82,13 @@ bump-dev:
 
     # --- Update Root package.json ---
     echo "Updating root $ROOT_PKG_FILE..."
-    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\1/')
+    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\\1/')
+    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\\1/')
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     # Update name (use current root name in pattern for safety)
-    sed -i.tmp "s/\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"/\"name\": \"$ROOT_PKG_NAME\"/" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
     # Update version (use current root version in pattern for safety)
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"/\"version\": \"$NEW_VERSION\"/" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
     rm "$ROOT_PKG_FILE.tmp" # sed creates two .tmp files on macOS, remove both
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
@@ -136,11 +136,11 @@ bump-patch:
 
     # --- Update Root package.json ---
     echo "Updating root $ROOT_PKG_FILE..."
-    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\1/')
+    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\\1/')
+    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\\1/')
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    sed -i.tmp "s/\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"/\"name\": \"$ROOT_PKG_NAME\"/" $ROOT_PKG_FILE
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"/\"version\": \"$NEW_VERSION\"/" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
     rm "$ROOT_PKG_FILE.tmp"
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
@@ -180,11 +180,11 @@ bump-minor:
 
     # --- Update Root package.json ---
     echo "Updating root $ROOT_PKG_FILE..."
-    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\1/')
+    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\\1/')
+    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\\1/')
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    sed -i.tmp "s/\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"/\"name\": \"$ROOT_PKG_NAME\"/" $ROOT_PKG_FILE
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"/\"version\": \"$NEW_VERSION\"/" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
     rm "$ROOT_PKG_FILE.tmp"
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
@@ -223,11 +223,11 @@ bump-major:
 
     # --- Update Root package.json ---
     echo "Updating root $ROOT_PKG_FILE..."
-    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\1/')
+    CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\\1/')
+    CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\\1/')
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    sed -i.tmp "s/\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"/\"name\": \"$ROOT_PKG_NAME\"/" $ROOT_PKG_FILE
-    sed -i.tmp "s/\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"/\"version\": \"$NEW_VERSION\"/" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE
     rm "$ROOT_PKG_FILE.tmp"
     rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
     rm "$ROOT_PKG_FILE.bak"
