@@ -243,39 +243,65 @@ async function run() {
   if (explicitConfigs.length > 0) {
     // Check if we are doing inline migration
     if (flags['--inline-source']) {
-      info('Migrating provided inline source string...')
       const inlineSource = flags['--inline-source'] as string
 
-      for (let config of explicitConfigs) {
-        const relativeConfigPath = relative(config.configFilePath, base)
+      // --- SINGLE CONFIG OPTIMIZED PATH ---
+      if (explicitConfigs.length === 1) {
+        const config = explicitConfigs[0]
         try {
-          // We assume migrateString exists and returns the migrated string
           const migratedString = await migrateString(
             config.designSystem,
             config.userConfig,
             inlineSource,
             flags['--inline-source-extension'],
           )
-
-          // Print the result clearly associated with its config
-          eprintln() // Add spacing
-          info(`Result using config ${highlight(relativeConfigPath)}:`)
-          console.log(migratedString) // Print the raw migrated string to stdout
-          eprintln() // Add spacing
+          // Output only the raw string to stdout and exit
+          process.stdout.write(migratedString)
+          process.exit(0)
         } catch (e: any) {
-          error(
-            `Failed to migrate inline source using config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`,
-            { prefix: '↳ ' },
-          )
-          console.error(
-            `[DEBUG] Full error details for inline migration with ${relativeConfigPath}:`,
-          )
-          console.error(e)
+          // Output only the error message to stderr and exit
+          eprintln(`Error migrating inline source: ${e?.message ?? e}`)
+          process.exit(1)
         }
       }
-      // Exit after printing inline results, no file changes to check
-      success('Inline source migration complete.')
-      process.exit(0)
+      // --- END SINGLE CONFIG PATH ---
+
+      // --- MULTIPLE CONFIGS PATH (Existing Logic) ---
+      else {
+        info('Migrating provided inline source string...') // Keep info for multi-config
+        for (let config of explicitConfigs) {
+          const relativeConfigPath = relative(config.configFilePath, base)
+          try {
+            // We assume migrateString exists and returns the migrated string
+            const migratedString = await migrateString(
+              config.designSystem,
+              config.userConfig,
+              inlineSource,
+              flags['--inline-source-extension'],
+            )
+
+            // Print the result clearly associated with its config
+            eprintln() // Add spacing
+            info(`Result using config ${highlight(relativeConfigPath)}:`) // Keep info for multi-config
+            console.log(migratedString) // Print the raw migrated string to stdout
+            eprintln() // Add spacing
+          } catch (e: any) {
+            error(
+              `Failed to migrate inline source using config ${highlight(relativeConfigPath)}: ${e?.message ?? e}`,
+              { prefix: '↳ ' },
+            )
+            // Keep debug details for multi-config case
+            console.error(
+              `[DEBUG] Full error details for inline migration with ${relativeConfigPath}:`,
+            )
+            console.error(e)
+          }
+        }
+        // Exit after printing all inline results for multiple configs
+        success('Inline source migration complete.') // Keep success for multi-config
+        process.exit(0)
+      }
+      // --- END MULTIPLE CONFIGS PATH ---
     } else {
       info('Migrating templates based on loaded configurations and source patterns…')
       for (let config of explicitConfigs) {
