@@ -1,0 +1,56 @@
+name: Sync Root README
+
+on:
+  push:
+    branches:
+      - '@toolwind/main' # Trigger on pushes to the main branch
+    paths:
+      - 'packages/@tailwindcss-upgrade/README.md' # Only run if the package README changes
+
+permissions:
+  contents: write # Need write permission to push commits
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: '@toolwind/main' # Ensure we are working on the correct branch
+
+      - name: Define Prefix
+        id: prefix
+        run: |
+          cat <<'EOF' > prefix.txt
+          <p align="center">
+          
+          The contents for this repository pertaining to the `@toolwind/upgrade` tool can be found [here](https://github.com/toolwind/upgrade/tree/%40toolwind/main/packages/%40tailwindcss-upgrade).
+          
+          </div>
+          
+          ---
+          
+          EOF
+
+      - name: Sync README Content
+        run: |
+          cat prefix.txt packages/@tailwindcss-upgrade/README.md > README.md
+          rm prefix.txt
+
+      - name: Check for Changes
+        id: diff
+        run: git diff --quiet README.md || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and Push Changes
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add README.md
+          git commit -m "docs: Sync root README with package README [skip ci]"
+          git push origin '@toolwind/main' 
