@@ -35,40 +35,18 @@ clean:
 
 # Publish the package (requires build first via dependency)
 # Argument: dev | stable
-publish level:
-    #!/usr/bin/env bash
-    set -e # Exit immediately if a command exits with a non-zero status.
-
-    # Validate argument
-    if [[ "{{level}}" != "dev" && "{{level}}" != "stable" ]]; then \
-        # Use direct echo here, as we want the main recipe to fail loudly if args are wrong
+publish level: _check-version-is-dev _check-version-is-stable _publish-dev-actual _publish-stable-actual
+    # This recipe just orchestrates dependencies based on the level argument checked by the _check-* recipes.
+    @# The actual work happens in the dependent helper recipes.
+    @if [[ "{{level}}" != "dev" && "{{level}}" != "stable" ]]; then \
         echo -e "\033[0;31mError: Invalid argument '{{level}}'. Use 'dev' or 'stable'.\033[0m"; \
         exit 1; \
     fi
-
-    # Run the appropriate check first, capturing the exit code without exiting the main recipe immediately.
-    CHECK_RECIPE=""
-    PUBLISH_RECIPE=""
-    if [[ "{{level}}" == "dev" ]]; then \
-        CHECK_RECIPE="_check-version-is-dev"
-        PUBLISH_RECIPE="_publish-dev-actual"
+    # Echo based on the intended path
+    @if [[ "{{level}}" == "dev" ]]; then \
+        echo "Attempting dev publish..."; \
     else \
-        CHECK_RECIPE="_check-version-is-stable"
-        PUBLISH_RECIPE="_publish-stable-actual"
-    fi
-
-    # Run the check but allow it to fail (|| true)
-    just $CHECK_RECIPE || CHECK_FAILED=$?
-
-    # Check the exit code manually
-    if [[ "${CHECK_FAILED:-0}" -ne 0 ]]; then
-        # The check recipe already printed the specific error in red
-        # Exit the main publish recipe without further messages from `just`
-        exit 1
-    else \
-        # Check passed, proceed with the actual publish steps
-        echo "Check passed, proceeding with {{level}} publish steps..."
-        just $PUBLISH_RECIPE
+        echo "Attempting stable publish..."; \
     fi
 
 # Placeholder for tests if added later
