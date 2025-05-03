@@ -35,18 +35,19 @@ clean:
 
 # Publish the package (requires build first via dependency)
 # Argument: dev | stable
-publish level: _check-version-is-dev _check-version-is-stable _publish-dev-actual _publish-stable-actual
-    # This recipe just orchestrates dependencies based on the level argument checked by the _check-* recipes.
-    @# The actual work happens in the dependent helper recipes.
-    @if [[ "{{level}}" != "dev" && "{{level}}" != "stable" ]]; then \
+publish level:
+    #!/usr/bin/env bash
+    # Validate argument first
+    if [[ "{{level}}" != "dev" && "{{level}}" != "stable" ]]; then \
         echo -e "\033[0;31mError: Invalid argument '{{level}}'. Use 'dev' or 'stable'.\033[0m"; \
         exit 1; \
     fi
-    # Echo based on the intended path
-    @if [[ "{{level}}" == "dev" ]]; then \
-        echo "Attempting dev publish..."; \
+    if [[ "{{level}}" == "dev" ]]; then \
+    # Explicitly run check, then the publish-actual (which depends on build)
+    just _check-version-is-dev && just _publish-dev-actual
     else \
-        echo "Attempting stable publish..."; \
+    # Explicitly run check, then the publish-actual (which depends on build)
+    just _check-version-is-stable && just _publish-stable-actual
     fi
 
 # Placeholder for tests if added later
@@ -71,8 +72,8 @@ bump-dev:
     echo "Current package version: $CURRENT_VERSION"
     # Check if the version matches the -dev.N pattern
     if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
-        echo "Error: Version '$CURRENT_VERSION' does not match expected -dev.N pattern."; \
-        exit 1; \
+    echo "Error: Version '$CURRENT_VERSION' does not match expected -dev.N pattern."; \
+    exit 1; \
     fi
     # Extract base version and dev number
     BASE_VERSION=$(echo "$CURRENT_VERSION" | sed -E 's/(.*)-dev\.[0-9]+$/\1/')
@@ -95,8 +96,8 @@ bump-dev:
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
     # Check if jq succeeded and variables are not empty
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
-        echo "Error: Failed to extract current name or version from root package.json using jq."
-        exit 1
+    echo "Error: Failed to extract current name or version from root package.json using jq."
+    exit 1
     fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     # Use sed with # delimiter, targeting the extracted current values
@@ -130,9 +131,9 @@ bump-patch:
     echo "Base package version for bump: $BASE_VERSION"
     # Check if the extracted base version matches the X.Y.Z pattern
     if ! echo "$BASE_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
-        # Use CURRENT_VERSION_FULL in error message
-        echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base for patch bump."; \
-        exit 1; \
+    # Use CURRENT_VERSION_FULL in error message
+    echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base for patch bump."; \
+    exit 1; \
     fi
     # Extract components from BASE_VERSION
     MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
@@ -154,8 +155,8 @@ bump-patch:
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
-        echo "Error: Failed to extract current name or version from root package.json using jq."
-        exit 1
+    echo "Error: Failed to extract current name or version from root package.json using jq."
+    exit 1
     fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
@@ -182,9 +183,9 @@ bump-minor:
     echo "Current full package version: $CURRENT_VERSION_FULL"
     echo "Base package version for bump: $BASE_VERSION"
     if ! echo "$BASE_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
-        # Use CURRENT_VERSION_FULL in error message
-        echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base for minor bump."; \
-        exit 1; \
+    # Use CURRENT_VERSION_FULL in error message
+    echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base for minor bump."; \
+    exit 1; \
     fi
     MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
     MINOR=$(echo "$BASE_VERSION" | cut -d. -f2)
@@ -204,8 +205,8 @@ bump-minor:
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
-        echo "Error: Failed to extract current name or version from root package.json using jq."
-        exit 1
+    echo "Error: Failed to extract current name or version from root package.json using jq."
+    exit 1
     fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
@@ -232,9 +233,9 @@ bump-major:
     echo "Current full package version: $CURRENT_VERSION_FULL"
     echo "Base package version for bump: $BASE_VERSION"
     if ! echo "$BASE_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
-        # Use CURRENT_VERSION_FULL in error message
-        echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base for major bump."; \
-        exit 1; \
+    # Use CURRENT_VERSION_FULL in error message
+    echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base for major bump."; \
+    exit 1; \
     fi
     MAJOR=$(echo "$BASE_VERSION" | cut -d. -f1)
     NEXT_MAJOR=$((MAJOR + 1))
@@ -253,8 +254,8 @@ bump-major:
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
-        echo "Error: Failed to extract current name or version from root package.json using jq."
-        exit 1
+    echo "Error: Failed to extract current name or version from root package.json using jq."
+    exit 1
     fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
@@ -286,8 +287,8 @@ set-stable:
     echo "Current full package version: $CURRENT_VERSION_FULL"
     # Check if the extracted base version is valid
     if ! echo "$NEW_STABLE_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
-        echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base to set as stable."; \
-        exit 1; \
+    echo "Error: Version '$CURRENT_VERSION_FULL' does not contain a valid X.Y.Z base to set as stable."; \
+    exit 1; \
     fi
     echo "Setting stable version to:  $NEW_STABLE_VERSION"
 
@@ -303,8 +304,8 @@ set-stable:
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
-        echo "Error: Failed to extract current name or version from root package.json using jq."
-        exit 1
+    echo "Error: Failed to extract current name or version from root package.json using jq."
+    exit 1
     fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
@@ -337,8 +338,8 @@ start-dev level='patch':
 
     # --- CHECK IF CURRENT VERSION IS STABLE ---
     if ! echo "$CURRENT_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+$'; then \
-        echo "Error: Current version '$CURRENT_VERSION' is not a stable X.Y.Z version. Cannot start dev cycle."; \
-        exit 1; \
+    echo "Error: Current version '$CURRENT_VERSION' is not a stable X.Y.Z version. Cannot start dev cycle."; \
+    exit 1; \
     fi
 
     # --- CALCULATE NEXT VERSION BASE ---
@@ -351,22 +352,22 @@ start-dev level='patch':
     NEXT_PATCH=$PATCH
 
     case "{{level}}" in
-        patch)
-            NEXT_PATCH=$((PATCH + 1))
-            ;;
-        minor)
-            NEXT_MINOR=$((MINOR + 1))
-            NEXT_PATCH=0
-            ;;
-        major)
-            NEXT_MAJOR=$((MAJOR + 1))
-            NEXT_MINOR=0
-            NEXT_PATCH=0
-            ;;
-        *)
-            echo "Error: Invalid level argument '{{level}}'. Use 'patch', 'minor', or 'major'."
-            exit 1
-            ;;
+    patch)
+        NEXT_PATCH=$((PATCH + 1))
+        ;;
+    minor)
+        NEXT_MINOR=$((MINOR + 1))
+        NEXT_PATCH=0
+        ;;
+    major)
+        NEXT_MAJOR=$((MAJOR + 1))
+        NEXT_MINOR=0
+        NEXT_PATCH=0
+        ;;
+    *)
+        echo "Error: Invalid level argument '{{level}}'. Use 'patch', 'minor', or 'major'."
+        exit 1
+        ;;
     esac
 
     NEXT_VERSION_BASE="$NEXT_MAJOR.$NEXT_MINOR.$NEXT_PATCH"
@@ -385,8 +386,8 @@ start-dev level='patch':
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
-        echo "Error: Failed to extract current name or version from root package.json using jq."
-        exit 1
+    echo "Error: Failed to extract current name or version from root package.json using jq."
+    exit 1
     fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
     sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
@@ -406,8 +407,8 @@ _check-version-is-dev:
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
     if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
-        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish stable' for stable releases.\033[0m"; \
-        exit 1; \
+    echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish stable' for stable releases.\033[0m"; \
+    exit 1; \
     fi
 
 # Check if the current package version is stable (no pre-release tag)
@@ -417,8 +418,8 @@ _check-version-is-stable:
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
     CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
     if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
-        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish dev'.\033[0m"; \
-        exit 1; \
+    echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish dev'.\033[0m"; \
+    exit 1; \
     fi
 
 # Internal recipe to format and publish dev (depends on build)
