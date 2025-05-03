@@ -408,8 +408,6 @@ _check-version-is-dev:
     if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
         echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish stable' for stable releases.\033[0m"; \
         exit 1; \
-    else \
-        echo "Version check passed: $CURRENT_VERSION is a dev version."; \
     fi
 
 # Check if the current package version is stable (no pre-release tag)
@@ -421,8 +419,6 @@ _check-version-is-stable:
     if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
         echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish dev'.\033[0m"; \
         exit 1; \
-    else \
-        echo "Version check passed: $CURRENT_VERSION is a stable version."; \
     fi
 
 # Internal recipe to format and publish dev (depends on build)
