@@ -176,7 +176,7 @@ bump level:
             ;;
     esac
 
-    echo "New version:                 $NEW_VERSION"
+    echo "New version:                  $NEW_VERSION"
 
     # --- Update Package package.json ---
     echo "Updating $PKG_FILE..."
