@@ -194,10 +194,10 @@ bump level:
         exit 1
     fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
-    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE || exit 1
-    rm "$ROOT_PKG_FILE.tmp" # sed creates two .tmp files on macOS, remove both
-    rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
+    # Use jq to update both name and version
+    jq --arg name "$ROOT_PKG_NAME" --arg ver "$NEW_VERSION" \
+       '.name = $name | .version = $ver' \
+       "$ROOT_PKG_FILE" > temp_root_pkg.json && mv temp_root_pkg.json "$ROOT_PKG_FILE" || exit 1
     rm "$ROOT_PKG_FILE.bak"
 
     echo "Version bumped successfully!"
@@ -256,12 +256,17 @@ set-version new_version:
 
     # --- Update Root package.json ---
     echo "Updating root $ROOT_PKG_FILE..."
+    CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
+    CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Error: Failed to extract current name or version from root package.json using jq."
+        exit 1
+    fi
     cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    # Use sed with # delimiter, targeting the extracted current values
-    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
-    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE || exit 1
-    rm "$ROOT_PKG_FILE.tmp" # sed creates two .tmp files on macOS, remove both
-    rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
+    # Use jq to update both name and version
+    jq --arg name "$ROOT_PKG_NAME" --arg ver "$NEW_VERSION" \
+       '.name = $name | .version = $ver' \
+       "$ROOT_PKG_FILE" > temp_root_pkg.json && mv temp_root_pkg.json "$ROOT_PKG_FILE" || exit 1
     rm "$ROOT_PKG_FILE.bak"
 
     echo "Version set successfully!"
@@ -366,13 +371,17 @@ revert-version:
 
     # --- Update Root package.json ---
     echo "Reverting version in root $ROOT_PKG_FILE..."
+    CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
+    CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
         echo "Warning: Failed to extract current name or version from root package.json using jq. Skipping root update."
     else
         cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-        # Only update version in root, keep name as is
-        sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$PREVIOUS_PKG_VERSION\"#" $ROOT_PKG_FILE || exit 1
-        rm "$ROOT_PKG_FILE.tmp"
+        # Use jq to update name and version
+        jq --arg name "$ROOT_PKG_NAME" --arg ver "$PREVIOUS_PKG_VERSION" \
+           '.name = $name | .version = $ver' \
+           "$ROOT_PKG_FILE" > temp_root_pkg.json && mv temp_root_pkg.json "$ROOT_PKG_FILE" || exit 1
         rm "$ROOT_PKG_FILE.bak"
     fi
 
