@@ -202,6 +202,70 @@ bump level:
 
     echo "Version bumped successfully!"
 
+# === Version Setting Recipe ===
+
+# Set an explicit version number in both package.json files.
+# Argument: A valid semver string (e.g., 4.1.6, 4.2.0-dev.0)
+# WARNING: Does not perform git checks or commits!
+set-version new_version:
+    #!/usr/bin/env bash
+    set -e # Exit immediately if a command exits with a non-zero status.
+
+    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    ROOT_PKG_FILE="package.json"
+    PKG_NAME="@toolwind/upgrade"
+    ROOT_PKG_NAME="${PKG_NAME}-root"
+    NEW_VERSION={{new_version}} # Get the argument
+
+    # Validate the provided version format (X.Y.Z or X.Y.Z-prerelease.N, etc.)
+    # Allows digits, dots, hyphens, and letters in the pre-release part
+    if ! echo "$NEW_VERSION" | grep -qE -- '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+        echo -e "\033[0;31mError: Invalid version format '$NEW_VERSION'. Expected X.Y.Z or X.Y.Z-tag.N format.\033[0m";
+        exit 1;
+    fi
+
+    echo "Setting version to '{{new_version}}' in package.json files..."
+
+    # --- Get Current Values for replacement ---
+    CURRENT_PKG_VERSION=$(jq -r '.version' "$PKG_FILE")
+    CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
+    CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_PKG_VERSION" ]; then
+      echo "Error: Failed to read current version from $PKG_FILE"
+      exit 1
+    fi
+     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Warning: Failed to extract current name or version from root package.json using jq. Will attempt update anyway."
+        # Allow continuation but the sed might fail if grep/head were used before
+        CURRENT_ROOT_VERSION=$(grep '"version":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') || CURRENT_ROOT_VERSION="NOT_FOUND"
+        CURRENT_ROOT_NAME=$(grep '"name":' "$ROOT_PKG_FILE" | head -n 1 | sed -E 's/.*"name":[[:space:]]*"(.*)".*/\1/') || CURRENT_ROOT_NAME="NOT_FOUND"
+
+    fi
+
+    echo "Current package version: $CURRENT_PKG_VERSION"
+    echo "Current root version:    $CURRENT_ROOT_VERSION"
+    echo "Target version:          $NEW_VERSION"
+
+
+    # --- Update Package package.json ---
+    echo "Updating $PKG_FILE..."
+    cp $PKG_FILE "$PKG_FILE.bak"
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_PKG_VERSION\"#\"version\": \"$NEW_VERSION\"#" $PKG_FILE || exit 1
+    rm "$PKG_FILE.tmp"
+    rm "$PKG_FILE.bak"
+
+    # --- Update Root package.json ---
+    echo "Updating root $ROOT_PKG_FILE..."
+    cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
+    # Use sed with # delimiter, targeting the extracted current values
+    sed -i.tmp "s#\"name\":[[:space:]]*\"$CURRENT_ROOT_NAME\"#\"name\": \"$ROOT_PKG_NAME\"#" $ROOT_PKG_FILE || exit 1
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_ROOT_VERSION\"#\"version\": \"$NEW_VERSION\"#" $ROOT_PKG_FILE || exit 1
+    rm "$ROOT_PKG_FILE.tmp" # sed creates two .tmp files on macOS, remove both
+    rm "$ROOT_PKG_FILE.tmp" 2>/dev/null || true
+    rm "$ROOT_PKG_FILE.bak"
+
+    echo "Version set successfully!"
+
 # === Internal Helper Recipes ===
 
 # Check if the current package version is a dev version (-dev.N)
