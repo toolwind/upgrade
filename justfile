@@ -259,59 +259,78 @@ set-version new_version:
     CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
     CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
     if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
-        echo "Error: Failed to extract current name or version from root package.json using jq."
-        exit 1
+        echo "Warning: Failed to extract current name or version from root package.json using jq. Skipping root update."
+    else
+        cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
+        # Use jq to update both name and version
+        jq --arg name "$ROOT_PKG_NAME" --arg ver "$NEW_VERSION" \
+           '.name = $name | .version = $ver' \
+           "$ROOT_PKG_FILE" > temp_root_pkg.json && mv temp_root_pkg.json "$ROOT_PKG_FILE" || exit 1
+        rm "$ROOT_PKG_FILE.bak"
     fi
-    cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
-    # Use jq to update both name and version
-    jq --arg name "$ROOT_PKG_NAME" --arg ver "$NEW_VERSION" \
-       '.name = $name | .version = $ver' \
-       "$ROOT_PKG_FILE" > temp_root_pkg.json && mv temp_root_pkg.json "$ROOT_PKG_FILE" || exit 1
-    rm "$ROOT_PKG_FILE.bak"
 
     echo "Version set successfully!"
 
-# === Internal Helper Recipes ===
-
-# Check if the current package version is a dev version (-dev.N)
-_check-version-is-dev:
+# Reset ONLY the version number in package.json files to the state in the current commit (HEAD).
+# This discards any uncommitted version changes.
+# WARNING: This only resets the version string, not other file content changes.
+# WARNING: Does not perform git checks or commits!
+reset-version:
     #!/usr/bin/env bash
-    echo "Checking if package version is a dev version..."
+    set -e
+
+    echo "Attempting to reset ONLY version number in package.json files to current commit (HEAD)..."
     PKG_FILE="packages/@tailwindcss-upgrade/package.json"
-    CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
-        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'publish stable' for stable releases.\033[0m"; \
-        exit 1; \
+    ROOT_PKG_FILE="package.json"
+    PKG_NAME="@toolwind/upgrade"
+    ROOT_PKG_NAME="${PKG_NAME}-root"
+
+    # --- Get Current WORKING version (for sed pattern) ---
+    CURRENT_PKG_VERSION=$(jq -r '.version' "$PKG_FILE")
+    echo "Current Working Version: $CURRENT_PKG_VERSION"
+
+    # --- Get TARGET version from HEAD ---
+    echo "Fetching version from HEAD commit..."
+    TARGET_VERSION=$(git show HEAD:"$PKG_FILE" | jq -r '.version') || {
+        echo -e "\033[0;31mError: Failed to get version from HEAD commit (git show HEAD:$PKG_FILE).\033[0m"
+        echo -e "       Ensure HEAD exists and contains the file."
+        exit 1
+    }
+     if [ -z "$TARGET_VERSION" ]; then
+        echo -e "\033[0;31mError: Could not extract version from HEAD commit.\033[0m"
+        exit 1
+    fi
+    echo "HEAD Commit Version:     $TARGET_VERSION"
+
+    if [[ "$CURRENT_PKG_VERSION" == "$TARGET_VERSION" ]]; then
+         echo "Current package version already matches HEAD commit. No reset needed."
+         exit 0
     fi
 
-# Check if the current package version is stable (no pre-release tag)
-_check-version-is-stable:
-    #!/usr/bin/env bash
-    echo "Checking if package version is a stable version..."
-    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
-    CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
-    if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
-        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'set-stable' first, or use 'publish dev'.\033[0m"; \
-        exit 1; \
+    # --- Update Package package.json ---
+    echo "Resetting version in $PKG_FILE to $TARGET_VERSION..."
+    cp $PKG_FILE "$PKG_FILE.bak"
+    sed -i.tmp "s#\"version\":[[:space:]]*\"$CURRENT_PKG_VERSION\"#\"version\": \"$TARGET_VERSION\"#" $PKG_FILE || exit 1
+    rm "$PKG_FILE.tmp" "$PKG_FILE.bak"
+
+    # --- Update Root package.json ---
+    echo "Resetting version in root $ROOT_PKG_FILE to $TARGET_VERSION..."
+    CURRENT_ROOT_VERSION=$(jq -r '.version' "$ROOT_PKG_FILE")
+    CURRENT_ROOT_NAME=$(jq -r '.name' "$ROOT_PKG_FILE")
+    if [ -z "$CURRENT_ROOT_VERSION" ] || [ -z "$CURRENT_ROOT_NAME" ]; then
+        echo "Warning: Failed to extract current name or version from root package.json using jq. Skipping root update."
+    else
+        cp $ROOT_PKG_FILE "$ROOT_PKG_FILE.bak"
+        # Update name and version using jq
+        jq --arg name "$ROOT_PKG_NAME" --arg ver "$TARGET_VERSION" \
+           '.name = $name | .version = $ver' \
+           "$ROOT_PKG_FILE" > temp_root_pkg.json && mv temp_root_pkg.json "$ROOT_PKG_FILE" || exit 1
+        rm "$ROOT_PKG_FILE.bak"
     fi
 
-# Internal recipe to format and publish dev (depends on build)
-_publish-dev-actual: build
-    #!/usr/bin/env bash
-    echo "Formatting @toolwind/upgrade package (for dev publish)..."
-    pnpm prettier --write packages/@tailwindcss-upgrade
-    CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
-    echo "Publishing DEV version ($CURRENT_VERSION) of @toolwind/upgrade..."
-    pnpm publish --filter @toolwind/upgrade --tag dev --no-git-checks
-
-# Internal recipe to format and publish stable (depends on build)
-_publish-stable-actual: build
-    #!/usr/bin/env bash
-    echo "Formatting @toolwind/upgrade package (for stable publish)..."
-    pnpm prettier --write packages/@tailwindcss-upgrade
-    CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
-    echo "Publishing STABLE version ($CURRENT_VERSION) of @toolwind/upgrade..."
-    pnpm publish --filter @toolwind/upgrade --no-git-checks
+    echo "Version reset successful!"
+    echo "New Package Version: $TARGET_VERSION"
+    echo "New Root Version:    $TARGET_VERSION (if root update succeeded)"
 
 # Revert ONLY the version number in package.json files to the most recent *different* version found in git history.
 # WARNING: This only reverts the version string, not other file content changes.
@@ -388,4 +407,46 @@ revert-version:
     echo "Version revert successful!"
     echo "New Package Version: $PREVIOUS_PKG_VERSION"
     echo "New Root Version:    $PREVIOUS_PKG_VERSION (if root update succeeded)"
-    echo "Please review and commit the changes." 
+    echo "Please review and commit the changes."
+
+# === Internal Helper Recipes ===
+
+# Check if the current package version is a dev version (-dev.N)
+_check-version-is-dev:
+    #!/usr/bin/env bash
+    echo "Checking if package version is a dev version..."
+    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    if ! echo "$CURRENT_VERSION" | grep -qE -- '-dev\.[0-9]+$'; then \
+        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) is not a dev version (-dev.N). Use 'bump dev-patch' (or minor/major) first, or use 'publish stable'.\033[0m"; \
+        exit 1; \
+    fi
+
+# Check if the current package version is stable (no pre-release tag)
+_check-version-is-stable:
+    #!/usr/bin/env bash
+    echo "Checking if package version is a stable version..."
+    PKG_FILE="packages/@tailwindcss-upgrade/package.json"
+    CURRENT_VERSION=$(grep '"version":' "$PKG_FILE" | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/')
+    if echo "$CURRENT_VERSION" | grep -qE -- '-'; then \
+        echo -e "\033[0;31mError: Current version ($CURRENT_VERSION) looks like a pre-release version. Use 'bump stable' first, or use 'publish dev'.\033[0m"; \
+        exit 1; \
+    fi
+
+# Internal recipe to format and publish dev (depends on build)
+_publish-dev-actual: build
+    #!/usr/bin/env bash
+    echo "Formatting @toolwind/upgrade package (for dev publish)..."
+    pnpm prettier --write packages/@tailwindcss-upgrade
+    CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
+    echo "Publishing DEV version ($CURRENT_VERSION) of @toolwind/upgrade..."
+    pnpm publish --filter @toolwind/upgrade --tag dev --no-git-checks
+
+# Internal recipe to format and publish stable (depends on build)
+_publish-stable-actual: build
+    #!/usr/bin/env bash
+    echo "Formatting @toolwind/upgrade package (for stable publish)..."
+    pnpm prettier --write packages/@tailwindcss-upgrade
+    CURRENT_VERSION=$(grep '"version":' packages/@tailwindcss-upgrade/package.json | sed -E 's/.*"version":[[:space:]]*"(.*)".*/\1/') # Read version again just for echo
+    echo "Publishing STABLE version ($CURRENT_VERSION) of @toolwind/upgrade..."
+    pnpm publish --filter @toolwind/upgrade --no-git-checks
